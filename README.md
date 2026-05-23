@@ -21,7 +21,7 @@ Using Chezmoi to replicate environments accross Linux systems.
 - Bitwarden
 - Brave
 - Firefox
-- 
+- wl-copy, wl-paste
 
 # Notes
 - Define installation strategy (package manager... cargo binstall? etc)
