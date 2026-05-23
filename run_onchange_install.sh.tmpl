@@ -1,0 +1,111 @@
+#!/bin/bash
+set -e
+
+echo "Starting environment bootstrap..."
+
+# 1. Core System Dependencies & Repositories
+echo "Installing base apt packages..."
+sudo apt update
+sudo apt install -y curl git zsh flatpak software-properties-common
+
+# Add official Helix PPA (recommended by Helix docs for Ubuntu)
+sudo add-apt-repository -y ppa:maveonair/helix-editor
+sudo apt update
+
+# Install system-level tools
+sudo apt install -y helix shfmt npm
+
+# 2. Rust Toolchain
+if ! command -v cargo &> /dev/null; then
+    echo "Installing Rust toolchain..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+fi
+source "$HOME/.cargo/env"
+
+# 3. Cargo Binstall
+if ! command -v cargo-binstall &> /dev/null; then
+    echo "Installing cargo-binstall..."
+    curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+fi
+
+# 4. Core CLI Tools (via binstall)
+echo "Installing CLI tools via cargo-binstall..."
+# Removed taplo-cli and marksman from this list
+cargo binstall -y zellij ripgrep fd-find bat
+
+# 5. uv (Astral's Python Manager)
+if ! command -v uv &> /dev/null; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+# uv creates this file to add ~/.local/bin to your path
+source "$HOME/.local/bin/env"
+
+# 6. Oh-My-Zsh
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "Installing oh-my-zsh..."
+    RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    sudo chsh -s $(which zsh) $USER
+fi
+
+# 7. Helix Language Dependencies
+echo "Setting up Helix Language Servers..."
+rustup component add rust-analyzer
+uv tool install basedpyright
+uv tool install ruff
+
+# Install Bash server and Taplo via NPM
+sudo npm install -g bash-language-server @taplo/cli
+
+# Install Marksman directly from GitHub (it is a .NET binary, not Rust)
+if ! command -v marksman &> /dev/null; then
+    echo "Installing Marksman..."
+    mkdir -p "$HOME/.local/bin"
+    curl -fLo "$HOME/.local/bin/marksman" https://github.com/artempyanykh/marksman/releases/latest/download/marksman-linux-x64
+    chmod +x "$HOME/.local/bin/marksman"
+fi
+
+# ---------------------------------------------------------
+# GUI APPLICATIONS
+# ---------------------------------------------------------
+is_snap_installed() {
+    if command -v snap &> /dev/null; then
+        snap list "$1" &> /dev/null
+        return 0
+    fi
+    return 1
+}
+
+if [ -n "$WAYLAND_DISPLAY" ] || [ -n "$DISPLAY" ]; then
+    echo "Display server detected. Processing GUI applications..."
+
+    if ! command -v ghostty &> /dev/null; then
+        sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
+        sudo apt update
+        sudo apt install -y ghostty
+    fi
+
+    sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+    if is_snap_installed "firefox"; then
+        echo "Firefox Snap detected. Skipping Flatpak installation."
+    else
+        sudo flatpak install -y flathub org.mozilla.firefox
+    fi
+
+    if is_snap_installed "brave"; then
+        echo "Brave Snap detected. Skipping Flatpak installation."
+    else
+        sudo flatpak install -y flathub com.brave.Browser
+    fi
+
+    if is_snap_installed "bitwarden"; then
+        echo "Bitwarden Snap detected. Skipping Flatpak installation."
+    else
+        sudo flatpak install -y flathub com.bitwarden.desktop
+    fi
+else
+    echo "No display server detected. Skipping GUI tools."
+fi
+
+echo "Bootstrap complete!"
