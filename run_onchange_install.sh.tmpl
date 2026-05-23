@@ -8,12 +8,45 @@ echo "Installing base apt packages..."
 sudo apt update
 sudo apt install -y curl git zsh flatpak software-properties-common
 
-# Add official Helix PPA (recommended by Helix docs for Ubuntu)
-sudo add-apt-repository -y ppa:maveonair/helix-editor
-sudo apt update
+# ---------------------------------------------------------
+# Install Helix (Architecture-Aware GitHub Release)
+# ---------------------------------------------------------
+if ! command -v hx &> /dev/null; then
+    echo "Installing Helix from GitHub releases..."
+    
+    # 1. Detect CPU Architecture
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then
+        HELIX_TARGET="x86_64-linux"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+        HELIX_TARGET="aarch64-linux"
+    else
+        echo "Unsupported architecture: $ARCH. Please install Helix manually (from source)."
+        exit 1
+    fi
+    
+    # 2. Fetch the correct download URL dynamically
+    HELIX_URL=$(curl -s https://api.github.com/repos/helix-editor/helix/releases/latest | grep "browser_download_url.*${HELIX_TARGET}.tar.xz" | cut -d '"' -f 4)
+    
+    # 3. Download and extract
+    mkdir -p /tmp/helix-install
+    curl -fLo /tmp/helix-install/helix.tar.xz "$HELIX_URL"
+    tar -xf /tmp/helix-install/helix.tar.xz -C /tmp/helix-install --strip-components=1
+    
+    # 4. Move executable and runtime
+    mkdir -p "$HOME/.local/bin"
+    cp /tmp/helix-install/hx "$HOME/.local/bin/"
+    
+    mkdir -p "$HOME/.config/helix"
+    cp -r /tmp/helix-install/runtime "$HOME/.config/helix/"
+    
+    # 5. Clean up
+    rm -rf /tmp/helix-install
+    echo "Helix ($HELIX_TARGET) installed successfully."
+fi
 
 # Install system-level tools
-sudo apt install -y helix shfmt npm
+sudo apt install -y shfmt npm
 
 # 2. Rust Toolchain
 if ! command -v cargo &> /dev/null; then
