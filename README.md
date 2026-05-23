@@ -18,6 +18,10 @@ Using Chezmoi to replicate environments accross Linux systems.
 - bat
 - uv
 - oh-my-zsh
+- Bitwarden
+- Brave
+- Firefox
+- 
 
 # Notes
 - Define installation strategy (package manager... cargo binstall? etc)
