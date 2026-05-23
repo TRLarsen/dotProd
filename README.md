@@ -8,11 +8,16 @@ Using Chezmoi to replicate environments accross Linux systems.
 
 # Tools
 ## Todo:
+- Rust toolchain
 - Ghostty
 - zellij
 - helix
+  - default language setup + dependencies
 - ripgrep
 - fd
 - bat
 - uv
 - oh-my-zsh
+
+# Notes
+- Define installation strategy (package manager... cargo binstall? etc)
