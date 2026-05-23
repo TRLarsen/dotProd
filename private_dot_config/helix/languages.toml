@@ -1,0 +1,40 @@
+# ==========================================
+# PYTHON
+# ==========================================
+
+[language-server.basedpyright]
+command = "basedpyright-langserver"
+args = ["--stdio"]
+
+[language-server.ruff]
+# Ruff natively acts as a language server now
+command = "ruff"
+args = ["server"]
+
+[[language]]
+name = "python"
+# Run both simultaneously. Basedpyright handles autocomplete/types, Ruff handles linting/formatting.
+language-servers = ["basedpyright", "ruff"]
+auto-format = true
+
+
+# ==========================================
+# C / C++
+# ==========================================
+
+[[language]]
+name = "c"
+auto-format = true
+
+[[language]]
+name = "cpp"
+auto-format = true
+
+
+# ==========================================
+# RUST
+# ==========================================
+
+[[language]]
+name = "rust"
+auto-format = true
