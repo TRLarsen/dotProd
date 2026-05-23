@@ -1,0 +1,27 @@
+[settings]
+# Explicitly tell mise to use uv instead of pipx for Python CLI tools (just to be safe)
+pipx = { uvx = true }
+
+[tools]
+# Cargo Tools
+"cargo:zellij" = "latest"
+"cargo:ripgrep" = "latest"
+"cargo:fd-find" = "latest"
+"cargo:bat" = "latest"
+
+# Astral's uv (Installed natively)
+uv = "latest"
+
+# Python Tools
+"pipx:ruff" = "latest"
+"pipx:basedpyright" = "latest"
+
+# NPM Tools
+"npm:@taplo/cli" = "latest"
+"npm:bash-language-server" = "latest"
+"npm:prettier" = "latest"
+
+# GitHub Binaries (Managed automatically via asdf community plugins)
+helix = "latest"
+marksman = "latest"
+cargo-binstall = "latest" # mise will automatically use cargo-binstall if installed
