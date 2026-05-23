@@ -38,3 +38,12 @@ auto-format = true
 [[language]]
 name = "rust"
 auto-format = true
+
+# ==========================================
+# MARKDOWN
+# ==========================================
+
+[[language]]
+name = "markdown"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "markdown"] }
