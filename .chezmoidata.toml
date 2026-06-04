@@ -1,0 +1,31 @@
+# Tools to be installed by `mise`
+# Version is set to "latest"
+# Format is "<Mise Format>" = "<Executable/binary name>"
+[tools]
+# Cargo Tools
+"cargo:zellij" = "zellij" # Window/pane/tile/session manager
+"cargo:ripgrep" = "rg" # Better `grep`
+"cargo:fd-find" = "fd" # Better `find`
+"cargo:bat" = "bat" # Better `cat`
+
+
+# Astral's uv (Installed natively)
+"uv" = "uv"
+
+# Pipx Tools
+# These will be installed using `uv` be default.
+"pipx:ruff" = "ruff"
+"pipx:basedpyright" = "basedpyright"
+"pipx:tombi" = "tombi" # For TOML formatting
+
+# NPM Tools
+"npm:bash-language-server" = "bash-language-server"
+"npm:prettier" = "prettier"
+
+# GitHub Binaries (Managed automatically via asdf community plugins)
+helix = "hx"
+marksman = "marksman"
+cargo-binstall = "cargo-binstall" # mise will automatically use cargo-binstall if installed
+zoxide = "zoxide"
+fzf = "fzf"
+starship = "starship"

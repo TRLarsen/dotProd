@@ -1,0 +1,9 @@
+[settings]
+# Explicitly tell mise to use uv instead of pipx for Python CLI tools
+pipx = { uvx = true }
+
+# Pulls list of tools from .chezmoidata.toml
+[tools]
+{{- range $package, $binary := .tools }}
+"{{ $package }}" = "latest"
+{{- end }}
