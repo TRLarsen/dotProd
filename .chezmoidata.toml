@@ -7,7 +7,7 @@
 "cargo:ripgrep" = "rg" # Better `grep`
 "cargo:fd-find" = "fd" # Better `find`
 "cargo:bat" = "bat" # Better `cat`
-
+"cargo:sheldon" = "sheldon" # Zsh Plugin Manager
 
 # Astral's uv (Installed natively)
 "uv" = "uv"
