@@ -73,14 +73,7 @@ rustup component add rust-analyzer
 mkdir -p "$HOME/.local/share/zsh/completions"
 rustup completions zsh > "$HOME/.local/share/zsh/completions/_cargo"
 
-# 3. Oh-My-Zsh
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo "Installing oh-my-zsh..."
-    RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-    sudo chsh -s $(which zsh) $USER
-fi
-
-# 4. Install & Execute Mise (The Dev Environment)
+# 3. Install & Execute Mise (The Dev Environment)
 if ! command -v mise &> /dev/null; then
     echo "Installing mise..."
     curl https://mise.run | sh
@@ -90,7 +83,7 @@ echo "Installing user-space tools via mise..."
 # This single command reads ~/.config/mise/config.toml and installs everything concurrently
 ~/.local/bin/mise install -y
 
-# 5. GUI Applications
+# 4. GUI Applications
 is_snap_installed() {
     if command -v snap &> /dev/null; then
         snap list "$1" &> /dev/null
