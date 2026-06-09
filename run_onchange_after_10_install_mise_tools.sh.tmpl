@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+# This comment hashes the user_tools dictionary from your .chezmoidata.toml.
+# By including it here, Chezmoi will automatically re-run this script 
+# ONLY when you add or remove a tool in your TOML!
+# Hash: {{ .user_tools | toJson | sha256sum }}
+
+if command -v "$HOME/.local/bin/mise" &> /dev/null; then
+    echo "Deploying user-space applications via Mise..."
+    "$HOME/.local/bin/mise" install -y
+else
+    echo "❌ Error: Mise binary not found. Cannot install user tools."
+    exit 1
+fi

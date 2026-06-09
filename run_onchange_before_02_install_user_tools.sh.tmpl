@@ -49,15 +49,3 @@ if ! command -v mise &> /dev/null; then
     echo "Bootstrapping mise execution engine..."
     curl https://mise.run | sh
 fi
-
-echo "Deploying user-space applications concurrently..."
-"$HOME/.local/bin/mise" install -y
-
-# 4. LLDB-DAP SYM-LINKING FIX FOR HELIX
-if ! command -v lldb-dap &> /dev/null; then
-    mkdir -p "$HOME/.local/bin"
-    LLDB_TARGET=$(find /usr/bin -name "lldb-dap*" -o -name "lldb-vscode*" 2>/dev/null | head -n 1)
-    if [ -n "$LLDB_TARGET" ]; then
-        ln -sf "$LLDB_TARGET" "$HOME/.local/bin/lldb-dap"
-    fi
-fi
