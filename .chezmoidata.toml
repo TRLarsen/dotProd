@@ -1,26 +1,46 @@
+# Config File defining what tools will be installed how/in what order
+
+# ===============================================================
+# 1. OS LAYER (Requires Sudo / Native Package Manager)
+# ===============================================================
+[system_tools]
+tailscale = "latest"
+curl = "latest"
+git = "latest"
+zsh = "latest"
+flatpak = "latest"
+software-properties-common = "latest"
+shfmt = "latest"
+npm = "latest"
+clangd = "latest"
+lldb = "latest"
+# wireshark = "latest" # Commented out, will be ignored
+
+# ===============================================================
+# 2. COMPILER/RUNTIME LAYER (Custom scripts)
+# ===============================================================
+[toolchains]
+rust = "stable"
+# node = "20"
+
+# ===============================================================
+# 3. CLI APPLICATION LAYER (Managed via Mise)
+# ===============================================================
 # Tools to be installed by `mise`
 # Version is set to "latest"
 # Format is "<Mise Format>" = "<Executable/binary name>"
-[tools]
-# Cargo Tools
-"cargo:zellij" = "zellij" # Window/pane/tile/session manager
-"cargo:ripgrep" = "rg" # Better `grep`
-"cargo:fd-find" = "fd" # Better `find`
-"cargo:bat" = "bat" # Better `cat`
+[user_tools]
+"cargo:zellij" = "zellij" # Modern Window/pane/tile/session manager
+"cargo:ripgrep" = "rg" # Modern `grep`
+"cargo:fd-find" = "fd" # Modern `find`
+"cargo:bat" = "bat" # Modern `cat`
 "cargo:sheldon" = "sheldon" # Zsh Plugin Manager
-
-# Astral's uv (Installed natively)
-"uv" = "uv"
-
-# Pipx Tools
-# These will be installed using `uv` be default.
-"pipx:ruff" = "ruff"
-"pipx:basedpyright" = "basedpyright"
-"pipx:tombi" = "tombi" # For TOML formatting
 
 # NPM Tools
 "npm:bash-language-server" = "bash-language-server"
 "npm:prettier" = "prettier"
+
+"uv" = "uv"
 
 # GitHub Binaries (Managed automatically via asdf community plugins)
 helix = "hx"
@@ -30,3 +50,18 @@ zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
 gh = "gh"
+
+# Pipx Tools
+# These will be installed using `uv` by default.
+"pipx:ruff" = "ruff"
+"pipx:basedpyright" = "basedpyright"
+"pipx:tombi" = "tombi" # For TOML formatting
+
+# ===============================================================
+# 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
+# ===============================================================
+[gui_apps]
+ghostty = "ppa:mkasberg/ghostty-ubuntu" # Passed to custom ghostty.sh script
+firefox = "org.mozilla.firefox"         # Passed to native Flatpak fallback
+brave = "com.brave.Browser"
+bitwarden = "com.bitwarden.desktop"

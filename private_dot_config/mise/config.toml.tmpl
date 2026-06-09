@@ -4,6 +4,6 @@ pipx = { uvx = true }
 
 # Pulls list of tools from .chezmoidata.toml
 [tools]
-{{- range $package, $binary := .tools }}
+{{- range $package, $binary := .user_tools }}
 "{{ $package }}" = "latest"
 {{- end }}

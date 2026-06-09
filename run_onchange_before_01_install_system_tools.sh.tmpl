@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "Processing system-level dependencies..."
+
+# Determine the native package manager based on OS
+{{ if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
+    PKG_MANAGER="sudo apt-get install -y"
+    echo "Updating system package lists..."
+    sudo apt-get update -y
+{{ else if eq .chezmoi.osRelease.id "fedora" }}
+    PKG_MANAGER="sudo dnf install -y"
+{{ else if eq .chezmoi.osRelease.id "arch" }}
+    PKG_MANAGER="sudo pacman -S --noconfirm"
+{{ else }}
+    echo "❌ Unsupported operating system topology."
+    exit 1
+{{ end }}
+
+# Loop through all uncommented system tools
+{{ range $tool, $version := .system_tools }}
+if ! command -v {{ $tool }} &> /dev/null; then
+    SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/daemons/{{ $tool }}.sh"
+    
+    if [[ -f "$SCRIPT_PATH" ]]; then
+        echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $version }})..."
+        # We pass the TOML value to the script as $1
+        bash "$SCRIPT_PATH" "{{ $version }}"
+    else
+        echo "📥 Installing {{ $tool }} via system package manager..."
+        $PKG_MANAGER "{{ $tool }}"
+    fi
+else
+    echo "✔ {{ $tool }} is already present."
+fi
+{{ end }}

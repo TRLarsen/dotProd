@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+# Safely exit if no display server is running (e.g., SSH session, CI container)
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ]; then
+    echo "No display server detected. Skipping GUI application bootstrap."
+    exit 0
+fi
+
+echo "Display server detected. Validating GUI elements..."
+
+# Ensure Flathub is registered before processing apps
+if command -v flatpak &> /dev/null; then
+    sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+fi
+
+{{ range $app, $app_identifier := .gui_apps }}
+SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/gui/{{ $app }}.sh"
+
+# 1. Try a custom script first (e.g., ghostty.sh reads the PPA string)
+if [[ -f "$SCRIPT_PATH" ]]; then
+    echo "🖥️  Running custom GUI installer for {{ $app }}..."
+    bash "$SCRIPT_PATH" "{{ $app_identifier }}"
+    
+# 2. Fallback strictly to Flatpak using the TOML value as the ID
+elif command -v flatpak &> /dev/null; then
+    # SAFETY GUARD: Catch missing custom scripts for PPAs
+    if [[ "{{ $app_identifier }}" == ppa:* ]]; then
+        echo "❌ Error: Missing custom installer script for {{ $app }}."
+        echo "Cannot pass a PPA string to Flatpak. Aborting."
+        exit 1
+    fi
+
+    echo "📦 Checking Flatpak installation for {{ $app }}..."
+    
+    if ! flatpak list | grep -q "{{ $app_identifier }}"; then
+        echo "Installing {{ $app_identifier }}..."
+        sudo flatpak install -y flathub "{{ $app_identifier }}"
+    else
+        echo "✔ {{ $app }} is already installed."
+    fi
+else
+    echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
+fi
+{{ end }}
