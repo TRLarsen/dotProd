@@ -109,9 +109,5 @@ TOML value to it as `$1`.
 To bootstrap a new machine from this repository:
 
 ```bash
-# 1. Install Chezmoi
-sh -c "$(curl -fsLS get.chezmoi.io)"
-
-# 2. Initialize and Apply
-chezmoi init --apply trlarsen
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply trlarsen
 ```
