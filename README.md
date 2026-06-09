@@ -1,4 +1,6 @@
-> [!NOTE] I acknowledge the use of the Gemini 3 family of Large Language Models
+> [!NOTE]
+>
+> I acknowledge the use of the Gemini 3 family of Large Language Models
 > throughout this project (including to write the below README). I have read
 > through all scripts/code, made edits where appropriate, and designed and
 > guided the system from a high level. I actively use this system.
