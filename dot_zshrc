@@ -100,3 +100,9 @@ czup() {
     echo "Upgrades complete. Reloading shell..."
     exec zsh
 }
+
+# `eza` (`ls` replacement) default
+if command -v eza &> /dev/null; then
+    # Base command default behavior
+    alias eza='eza --group-directories-first --icons=always --color=always'
+fi

@@ -4,7 +4,7 @@
 # 1. OS LAYER (Requires Sudo / Native Package Manager)
 # ===============================================================
 [system_tools]
-tailscale = "latest"
+# tailscale = "latest"
 curl = "latest"
 git = "latest"
 zsh = "latest"
@@ -34,6 +34,7 @@ rust = "stable"
 "cargo:ripgrep" = "rg" # Modern `grep`
 "cargo:fd-find" = "fd" # Modern `find`
 "cargo:bat" = "bat" # Modern `cat`
+"cargo:eza" = "eza" # Modern `ls`
 "cargo:sheldon" = "sheldon" # Zsh Plugin Manager
 
 # NPM Tools
