@@ -36,6 +36,7 @@ rust = "stable"
 "cargo:bat" = "bat" # Modern `cat`
 "cargo:eza" = "eza" # Modern `ls`
 "cargo:sheldon" = "sheldon" # Zsh Plugin Manager
+"cargo:comrak" = "comrak"
 
 # NPM Tools
 "npm:bash-language-server" = "bash-language-server"

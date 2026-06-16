@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+# Check if a file was provided
+if [ -z "$1" ]; then
+    echo "Usage: mdview <markdown-file>"
+    exit 1
+fi
+
+# Create the cache directory if it doesn't exist
+TARGET_HTML="$HOME/md-preview.html"
+
+# 1. Compile Markdown using Comrak with GFM and Math features enabled
+BODY=$(comrak --gfm "$1") # --enable-math 
+ 
+# 2. Inject the compiled body into a robust standalone HTML template
+cat <<EOF > "$TARGET_HTML"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview: $1</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
+    <style>
+        body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #0d1117; }
+        }
+    </style>
+</head>
+<body class="markdown-body">
+
+$BODY
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.js';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
+        });
+    </script>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" 
+            onload="renderMathInElement(document.body);"></script>
+</body>
+</html>
+EOF
+
+# 3. Open the preview locally based on the OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    open "$TARGET_HTML"
+else
+    xdg-open "$TARGET_HTML" 2>/dev/null
+fi
