@@ -6,13 +6,12 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-# Create the cache directory if it doesn't exist
-TARGET_HTML="$HOME/md-preview.html"
+TARGET_HTML="$HOME/preview.html"
 
-# 1. Compile Markdown using Comrak with GFM and Math features enabled
-BODY=$(comrak --gfm "$1") # --enable-math 
- 
-# 2. Inject the compiled body into a robust standalone HTML template
+# 1. Compile Markdown using Comrak's strict standard GFM CLI engine
+BODY=$(comrak --gfm "$1")
+
+# 2. Inject into the HTML template with automatic alert styling
 cat <<EOF > "$TARGET_HTML"
 <!DOCTYPE html>
 <html>
@@ -21,8 +20,10 @@ cat <<EOF > "$TARGET_HTML"
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Preview: $1</title>
     
+    <!-- GitHub Markdown Styling (Handles alert borders and structure natively) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
     
+    <!-- KaTeX CSS for Math Equations -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     
     <style>
@@ -42,6 +43,7 @@ cat <<EOF > "$TARGET_HTML"
 
 $BODY
 
+    <!-- Load and initialize Mermaid for diagrams -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.js';
         mermaid.initialize({ 
@@ -50,16 +52,27 @@ $BODY
         });
     </script>
     
+    <!-- Load KaTeX for LaTeX rendering -->
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" 
-            onload="renderMathInElement(document.body);"></script>
+            onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+            
+    <!-- Modern Client-side GitHub Admonition/Alert Transformer -->
+    <script>
+        document.querySelectorAll('blockquote').forEach(bq => {
+            const firstP = bq.querySelector('p');
+            if (!firstP) return;
+            const match = firstP.innerHTML.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](<br>|\s)?/i);
+            if (match) {
+                const type = match[1].toUpperCase();
+                bq.classList.add('markdown-alert', \`markdown-alert-\${type.toLowerCase()}\`);
+                firstP.innerHTML = firstP.innerHTML.replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](<br>|\s)?/i, \`<p class="markdown-alert-title">\${type}</p>\`);
+            }
+        });
+    </script>
 </body>
 </html>
 EOF
 
-# 3. Open the preview locally based on the OS
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "$TARGET_HTML"
-else
-    xdg-open "$TARGET_HTML" 2>/dev/null
-fi
+# 3. Open the file locally
+xdg-open "$TARGET_HTML" 2>/dev/null
