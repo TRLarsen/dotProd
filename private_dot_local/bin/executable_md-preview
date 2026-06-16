@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+# Check if a file was provided
+if [ -z "$1" ]; then
+    echo "Usage: mdview <markdown-file>"
+    exit 1
+fi
+
+TARGET_HTML="$HOME/preview.html"
+
+# 1. Compile Markdown using Comrak
+BODY=$(comrak --gfm "$1")
+
+# 2. Inject into a perfectly padded HTML template with integrated script assets
+cat <<EOF > "$TARGET_HTML"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview: $1</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.1/github-markdown.min.css">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hl-light">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hl-dark" disabled>
+    
+    <style>
+        html, body {
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+        /* Forces the structural text framework container to behave cleanly */
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto !important;
+            padding: 45px 45px !important; /* Uniform deep container margin padding cushion */
+        }
+        /* Fixes the internal admonition alert padding gap inside sandboxed viewports */
+        .markdown-body .markdown-alert {
+            padding: 12px 24px !important;
+            margin-bottom: 16px;
+        }
+        .markdown-body .markdown-alert p {
+            margin-bottom: 0;
+        }
+        @media (prefers-color-scheme: dark) {
+            html, body, .markdown-body { background-color: #0d1117 !important; }
+        }
+    </style>
+</head>
+<body class="markdown-body">
+
+$BODY
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        // Synchronize code blocks dark/light visual states cleanly
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.getElementById('hl-light').disabled = true;
+            document.getElementById('hl-dark').disabled = false;
+        }
+        // Fire syntax execution engine instantly
+        hljs.highlightAll();
+    </script>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.js';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
+        });
+    </script>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" 
+            onload="renderMathInElement(document.body, {delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+            
+    <script>
+        const ICONS = {
+            NOTE: '<svg class="octicon" viewBox="0 0 16 16" width="16" height="16" style="fill: currentColor; vertical-align: text-bottom; margin-right: 8px;"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1.5a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25A.75.75 0 0 1 6.5 7.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>',
+            TIP: '<svg class="octicon" viewBox="0 0 16 16" width="16" height="16" style="fill: currentColor; vertical-align: text-bottom; margin-right: 8px;"><path d="M8 1.5c-2.363 0-4 1.83-4 3.75 0 .937.288 1.637.771 2.227.424.516.598.932.652 1.41a.25.25 0 0 1-.247.278H3.75a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-1.426a.25.25 0 0 1-.247-.278c.054-.478.228-.894.652-1.41.483-.59.771-1.29.771-2.227 0-1.92-1.637-3.75-4-3.75ZM5.5 5.25c0-1.378 1.093-2.25 2.5-2.25a.75.75 0 0 1 0 1.5c-.524 0-1 .343-1 .75a.75.75 0 0 1-1.5 0ZM7.5 12h1v1.5h-1V12Zm-1.5 0h1v1.5h-1V12Zm3 0h1v1.5h-1V12Z"></path></svg>',
+            IMPORTANT: '<svg class="octicon" viewBox="0 0 16 16" width="16" height="16" style="fill: currentColor; vertical-align: text-bottom; margin-right: 8px;"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM1.75 1.5a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25ZM8 10.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5ZM7.25 4a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-1.5 0V4Z"></path></svg>',
+            WARNING: '<svg class="octicon" viewBox="0 0 16 16" width="16" height="16" style="fill: currentColor; vertical-align: text-bottom; margin-right: 8px;"><path d="M6.457 1.047c.659-1.134 2.298-1.134 2.957 0l6.11 10.51c.665 1.144-.16 2.583-1.479 2.583H1.826c-1.32 0-2.144-1.44-1.479-2.583Zm1.543 1.867L1.89 13.424h12.19L8 2.914Zm-.75 4.836a.75.75 0 0 1 1.5 0v2.5a.75.75 0 0 1-1.5 0v-2.5ZM8 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"></path></svg>',
+            CAUTION: '<svg class="octicon" viewBox="0 0 16 16" width="16" height="16" style="fill: currentColor; vertical-align: text-bottom; margin-right: 8px;"><path d="M4.47 1.257c.535-.917 1.807-.917 2.342 0l6.09 10.44c.54.924-.227 2.083-1.294 2.083H1.475c-1.067 0-1.834-1.159-1.294-2.083Zm1.171.683L1.475 12.5h10.334L6.115 1.94Zm-.365 7.81a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-1.5 0v-1.5ZM6.5 7a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-1.5 0V7Z"></path></svg>'
+        };
+
+        document.querySelectorAll('blockquote').forEach(bq => {
+            const firstP = bq.querySelector('p');
+            if (!firstP) return;
+            const match = firstP.innerHTML.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](<br>|\s)?/i);
+            if (match) {
+                const type = match[1].toUpperCase();
+                bq.classList.add('markdown-alert', \`markdown-alert-\${type.toLowerCase()}\`);
+                
+                const titlePara = document.createElement('p');
+                titlePara.classList.add('markdown-alert-title');
+                titlePara.innerHTML = ICONS[type] + type.charAt(0) + type.slice(1).toLowerCase();
+                
+                firstP.innerHTML = firstP.innerHTML.replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](<br>|\s)?/i, '');
+                bq.insertBefore(titlePara, firstP);
+            }
+        });
+    </script>
+</body>
+</html>
+EOF
+
+# 3. Open the file locally
+xdg-open "$TARGET_HTML" 2>/dev/null
