@@ -11,7 +11,6 @@ zsh = "latest"
 flatpak = "latest"
 software-properties-common = "latest"
 shfmt = "latest"
-npm = "latest"
 clangd = "latest"
 lldb = "latest"
 # wireshark = "latest" # Commented out, will be ignored
@@ -21,7 +20,6 @@ lldb = "latest"
 # ===============================================================
 [toolchains]
 rust = "stable"
-# node = "20"
 
 # ===============================================================
 # 3. CLI APPLICATION LAYER (Managed via Mise)
@@ -30,12 +28,14 @@ rust = "stable"
 # Version is set to "latest"
 # Format is "<Mise Format>" = "<Executable/binary name>"
 [user_tools]
-"cargo:zellij" = "zellij" # Modern Window/pane/tile/session manager
-"cargo:ripgrep" = "rg" # Modern `grep`
-"cargo:fd-find" = "fd" # Modern `find`
-"cargo:bat" = "bat" # Modern `cat`
-"cargo:eza" = "eza" # Modern `ls`
-"cargo:sheldon" = "sheldon" # Zsh Plugin Manager
+node = "latest"
+
+"cargo:zellij" = "zellij"  # Modern Window/pane/tile/session manager
+"cargo:ripgrep" = "rg"  # Modern `grep`
+"cargo:fd-find" = "fd"  # Modern `find`
+"cargo:bat" = "bat"  # Modern `cat`
+"cargo:eza" = "eza"  # Modern `ls`
+"cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
 "cargo:comrak" = "comrak"
 
 # NPM Tools
@@ -47,7 +47,7 @@ rust = "stable"
 # GitHub Binaries (Managed automatically via asdf community plugins)
 helix = "hx"
 marksman = "marksman"
-cargo-binstall = "cargo-binstall" # mise will automatically use cargo-binstall if installed
+cargo-binstall = "cargo-binstall"  # mise will automatically use cargo-binstall if installed
 zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
@@ -57,13 +57,13 @@ gh = "gh"
 # These will be installed using `uv` by default.
 "pipx:ruff" = "ruff"
 "pipx:basedpyright" = "basedpyright"
-"pipx:tombi" = "tombi" # For TOML formatting
+"pipx:tombi" = "tombi"  # For TOML formatting
 
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
 # ===============================================================
 [gui_apps]
-ghostty = "ppa:mkasberg/ghostty-ubuntu" # Passed to custom ghostty.sh script
-firefox = "org.mozilla.firefox"         # Passed to native Flatpak fallback
+ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
+firefox = "org.mozilla.firefox"  # Passed to native Flatpak fallback
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
