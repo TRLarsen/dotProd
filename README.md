@@ -1,3 +1,9 @@
+# dotProd
+
+The dot product of two excellent config management solutions (`chezmoi` and
+`mise`), plus a little extra scripting secret sauce; dotProd takes new Linux
+machines from blank slates to Prod-ready.
+
 > [!NOTE]
 >
 > I acknowledge the use of the Gemini 3 family of Large Language Models
@@ -109,5 +115,5 @@ TOML value to it as `$1`.
 To bootstrap a new machine from this repository:
 
 ```bash
-sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply trlarsen
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply trlarsen/dotProd
 ```
