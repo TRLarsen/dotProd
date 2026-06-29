@@ -109,3 +109,11 @@ if command -v eza &> /dev/null; then
     # Base command default behavior
     alias eza='eza --group-directories-first --icons=always --color=always'
 fi
+
+
+# Enable editing command line in $EDITOR
+# Press alt + v to open current command in $EDITOR.
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey -M vicmd '\ev' edit-command-line
+bindkey -M viins '\ev' edit-command-line
