@@ -41,11 +41,11 @@ export VISUAL="$EDITOR"
 # Rust
 . "$HOME/.cargo/env"
 
-# # Use BitWarden SSH Agent
-# export SSH_AUTH_SOCK=/home/tyler-larsen/snap/bitwarden/current/.bitwarden-ssh-agent.sock
+# Use BitWarden SSH Agent
+export SSH_AUTH_SOCK=/home/tyler-larsen/snap/bitwarden/current/.bitwarden-ssh-agent.sock
 
-# Dynamically find the newest active Bitwarden snap socket
-export SSH_AUTH_SOCK=$(ls -td $HOME/snap/bitwarden/[0-9]*/.bitwarden-ssh-agent.sock 2>/dev/null | head -n 1)
+# # Dynamically find the newest active Bitwarden snap socket
+# export SSH_AUTH_SOCK=$(ls -td $HOME/snap/bitwarden/[0-9]*/.bitwarden-ssh-agent.sock 2>/dev/null | head -n 1)
 
 # ----------------------------------------
 # Tool Initializations (Mise, Zellij, etc.)
@@ -117,3 +117,6 @@ autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey -M vicmd '\ev' edit-command-line
 bindkey -M viins '\ev' edit-command-line
+
+# Serve/open Rust docs using a Python HTTP Server to avoid sandboxing permissions issues.
+alias open_rust_docs='python3 -m http.server --directory "$(dirname $(rustup doc --path))"'
