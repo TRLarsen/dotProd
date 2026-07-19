@@ -67,3 +67,4 @@ ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
 firefox = "org.mozilla.firefox"  # Passed to native Flatpak fallback
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
+vlc = "org.videolan.VLC"
