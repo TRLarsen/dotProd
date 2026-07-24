@@ -42,7 +42,11 @@ export VISUAL="$EDITOR"
 . "$HOME/.cargo/env"
 
 # Use BitWarden SSH Agent
-export SSH_AUTH_SOCK=/home/tyler-larsen/snap/bitwarden/current/.bitwarden-ssh-agent.sock
+# Flatpak
+export SSH_AUTH_SOCK=/home/trlarsen/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock
+
+# # Snap
+# export SSH_AUTH_SOCK=/home/tyler-larsen/snap/bitwarden/current/.bitwarden-ssh-agent.sock
 
 # # Dynamically find the newest active Bitwarden snap socket
 # export SSH_AUTH_SOCK=$(ls -td $HOME/snap/bitwarden/[0-9]*/.bitwarden-ssh-agent.sock 2>/dev/null | head -n 1)
