@@ -15,19 +15,21 @@ if command -v flatpak &> /dev/null; then
 fi
 
 {{ range $app, $app_identifier := .gui_apps }}
-SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/gui/{{ $app }}.sh.tmpl"
+# Use {{ .chezmoi.sourceDir }} instead of hardcoding $HOME/.local/share/chezmoi
+SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/gui/{{ $app }}.sh.tmpl"
 
-# 1. Try a custom script first (e.g., ghostty.sh reads the PPA string)
+# 1. Try a custom script first
 if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🖥️  Running custom GUI installer for {{ $app }}..."
-    bash "$SCRIPT_PATH" "{{ $app_identifier }}"
-    
+    # Render the template via chezmoi first, then pipe to bash with $1 set to $app_identifier
+    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
+
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
 elif command -v flatpak &> /dev/null; then
-    # SAFETY GUARD: Catch missing custom scripts for PPAs
-    if [[ "{{ $app_identifier }}" == ppa:* ]]; then
+    # SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers
+    if [[ "{{ $app_identifier }}" == ppa:* ]] || [[ "{{ $app_identifier }}" == */* ]]; then
         echo "❌ Error: Missing custom installer script for {{ $app }}."
-        echo "Cannot pass a PPA string to Flatpak. Aborting."
+        echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
         exit 1
     fi
 
@@ -41,5 +43,7 @@ elif command -v flatpak &> /dev/null; then
     fi
 else
     echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
+fi
+{{ end }}
 fi
 {{ end }}
