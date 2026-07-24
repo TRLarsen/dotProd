@@ -15,7 +15,7 @@ if command -v flatpak &> /dev/null; then
 fi
 
 {{ range $app, $app_identifier := .gui_apps }}
-SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/gui/{{ $app }}.sh"
+SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/gui/{{ $app }}.sh.tmpl"
 
 # 1. Try a custom script first (e.g., ghostty.sh reads the PPA string)
 if [[ -f "$SCRIPT_PATH" ]]; then
