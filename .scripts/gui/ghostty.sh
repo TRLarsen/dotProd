@@ -5,10 +5,14 @@ set -euo pipefail
 PPA_STRING="$1" 
 
 if ! command -v ghostty &> /dev/null; then
-    echo "Adding repository: $PPA_STRING..."
-    sudo add-apt-repository -y "$PPA_STRING"
-    sudo apt-get update -y
-    sudo apt-get install -y ghostty
+    {{ if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
+        echo "Adding repository: $PPA_STRING..."
+        sudo add-apt-repository -y "$PPA_STRING"
+        sudo apt-get update -y
+        sudo apt-get install -y ghostty
+    {{ else if eq .chezmoi.osRelease.id "fedora" }}
+        dnf copr enable scottames/ghostty
+        dnf install ghostty
 else
-    echo "✔ Ghostty is already installed via APT."
+    echo "✔ Ghostty is already installed."
 fi
