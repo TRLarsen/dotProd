@@ -32,7 +32,7 @@ node = "latest"
 
 "cargo:zellij" = "zellij"  # Modern Window/pane/tile/session manager
 "cargo:ripgrep" = "rg"  # Modern `grep`
-"cargo:fd-find" = "fd"  # Modern `find`
+# "cargo:fd-find" = "fd"  # Modern `find` # Comes pre-installed on Fedora COSMIC Spin, need to gate/check
 "cargo:bat" = "bat"  # Modern `cat`
 "cargo:eza" = "eza"  # Modern `ls`
 "cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
