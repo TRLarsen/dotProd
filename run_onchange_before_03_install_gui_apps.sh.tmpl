@@ -15,7 +15,6 @@ if command -v flatpak &> /dev/null; then
 fi
 
 {{ range $app, $app_identifier := .gui_apps }}
-# Use {{ .chezmoi.sourceDir }} instead of hardcoding $HOME/.local/share/chezmoi
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/gui/{{ $app }}.sh.tmpl"
 
 # 1. Try a custom script first
@@ -45,4 +44,3 @@ else
     echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
 fi
 {{ end }}
-fi
