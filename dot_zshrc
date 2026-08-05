@@ -114,7 +114,6 @@ if command -v eza &> /dev/null; then
     alias eza='eza --group-directories-first --icons=always --color=always'
 fi
 
-
 # Enable editing command line in $EDITOR
 # Press alt + v to open current command in $EDITOR.
 autoload -Uz edit-command-line
@@ -124,3 +123,12 @@ bindkey -M viins '\ev' edit-command-line
 
 # Serve/open Rust docs using a Python HTTP Server to avoid sandboxing permissions issues.
 alias open_rust_docs='python3 -m http.server --directory "$(dirname $(rustup doc --path))"'
+
+# Yazi recommended function to change CWD to selected directory.
+function y() {
+	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+	command yazi "$@" --cwd-file="$tmp"
+	IFS= read -r -d '' cwd < "$tmp"
+	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
+	command rm -f -- "$tmp"
+}

@@ -4,7 +4,7 @@
 # 1. OS LAYER (Requires Sudo / Native Package Manager)
 # ===============================================================
 [system_tools]
-# tailscale = "latest"
+tailscale = "latest"
 curl = "latest"
 git = "latest"
 zsh = "latest"
@@ -18,8 +18,9 @@ lldb = "latest"
 # ===============================================================
 # 2. COMPILER/RUNTIME LAYER (Custom scripts)
 # ===============================================================
-[toolchains]
-rust = "stable"
+[external_user_tools]
+rust        = { version = "stable", kind = "toolchains" }
+claude-code = { version = "stable", kind = "standalone" }
 
 # ===============================================================
 # 3. CLI APPLICATION LAYER (Managed via Mise)
@@ -52,6 +53,7 @@ zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
 gh = "gh"
+yazi = "ya" # Terminal file manager
 
 # Pipx Tools
 # These will be installed using `uv` by default.
