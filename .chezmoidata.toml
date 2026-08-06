@@ -13,6 +13,7 @@ flatpak = "latest"
 shfmt = "latest"
 clangd = "latest"
 lldb = "latest"
+firefox = "latest"  # Native package; see run_after_20_configure_firefox.sh.tmpl for opt-in prefs/extensions sync
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
@@ -66,7 +67,25 @@ yazi = "ya" # Terminal file manager
 # ===============================================================
 [gui_apps]
 ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
-firefox = "org.mozilla.firefox"  # Passed to native Flatpak fallback
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
+
+# ===============================================================
+# 5. PERSONAL LAYER (Optional, per-machine opt-in)
+# ===============================================================
+# Opinionated, user-specific customizations that not everyone forking this
+# repo will want. Nothing here is required by the core dispatcher scripts;
+# comment out a line to skip that customization on a given machine.
+[personal]
+firefox_prefs = true  # Inject Betterfox (sourced live) + curated overrides into Firefox's user.js
+
+# Extensions to force-install via Firefox's enterprise policy engine (can't be
+# disabled/removed by accident; installed with no user prompt). Key = the
+# extension's ID (from about:debugging or its manifest), value = its AMO
+# ("addons.mozilla.org") URL slug. Add/remove/comment a line to change what
+# gets installed.
+[personal.firefox_extensions]
+"uBlock0@raymondhill.net" = "ublock-origin"
+"{446900e4-71c2-419f-a6a7-df9c091e268b}" = "bitwarden-password-manager"
+"floccus@handmadeideas.org" = "floccus"

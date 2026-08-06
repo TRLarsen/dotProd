@@ -33,7 +33,19 @@ elif command -v flatpak &> /dev/null; then
     fi
 
     echo "📦 Checking Flatpak installation for {{ $app }}..."
-    
+
+    # DUPLICATE-INSTALL GUARD: if a native package already ships a desktop
+    # entry under this exact Flatpak app ID, installing the Flatpak on top
+    # would silently create two colliding "{{ $app }}" launchers (Double Icon
+    # Syndrome) instead of one obvious winner.
+    NATIVE_DESKTOP_FILE="/usr/share/applications/{{ $app_identifier }}.desktop"
+    if [[ -f "$NATIVE_DESKTOP_FILE" && ! -L "$NATIVE_DESKTOP_FILE" ]]; then
+        echo "❌ Error: A native package already provides {{ $app }} ($NATIVE_DESKTOP_FILE exists)."
+        echo "Installing the Flatpak ({{ $app_identifier }}) on top would duplicate it."
+        echo "Either uninstall the native package, or remove '{{ $app }}' from [gui_apps] in .chezmoidata.toml."
+        exit 1
+    fi
+
     if ! flatpak list | grep -q "{{ $app_identifier }}"; then
         echo "Installing {{ $app_identifier }}..."
         sudo flatpak install -y flathub "{{ $app_identifier }}"
