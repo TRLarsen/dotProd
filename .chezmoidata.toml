@@ -13,6 +13,9 @@ flatpak = "latest"
 shfmt = "latest"
 clangd = "latest"
 lldb = "latest"
+NetworkManager-strongswan = "latest"
+NetworkManager-strongswan-gnome = "latest"
+nm-connection-editor = "latest"
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
