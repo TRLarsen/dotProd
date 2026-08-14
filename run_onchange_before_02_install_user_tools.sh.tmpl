@@ -3,18 +3,16 @@ set -euo pipefail
 
 echo "Executing user-space environment validation..."
 
-# 1. INITIALIZE LANGUAGE TOOLCHAINS
-echo "Provisioning compiler toolchains..."
-
-{{ range $toolchain, $version := .toolchains }}
-SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/toolchains/{{ $toolchain }}.sh"
-
+# 1. INSTALL EXTERNAL (script-based, non-mise) TOOLS
+echo "Installing external user tools..."
+{{ range $tool, $cfg := .external_user_tools }}
+SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/{{ $cfg.kind }}/{{ $tool }}.sh"
 if [[ -f "$SCRIPT_PATH" ]]; then
-    echo "⚙️  Executing installer for {{ $toolchain }} (Version: {{ $version }})..."
-    bash "$SCRIPT_PATH" "{{ $version }}"
+  echo "⚙️ Executing installer for {{ $tool }} (Version: {{ $cfg.version }})..."
+  bash "$SCRIPT_PATH" "{{ $cfg.version }}"
 else
-    echo "❌ Error: Toolchain script missing at $SCRIPT_PATH"
-    exit 1
+  echo "❌ Error: script missing at $SCRIPT_PATH"
+  exit 1
 fi
 {{ end }}
 
@@ -23,29 +21,29 @@ fi
 
 # 2. COLLISION DETECTION HEALTH CHECK
 MISE_TOOLS=(
-{{- range $package, $binary := .user_tools }}
-    "{{ $binary }}"
-{{- end }}
+  {{- range $package, $binary := .user_tools }}
+  "{{ $binary }}"
+  {{- end }}
 )
 
 COLLISIONS=0
 for tool in "${MISE_TOOLS[@]}"; do
-    if command -v "$tool" &> /dev/null; then
-        TOOL_PATH=$(command -v "$tool")
-        if [[ "$TOOL_PATH" != *".local/share/mise"* ]] && [[ "$TOOL_PATH" != *".local/bin/mise"* ]] && [[ "$TOOL_PATH" != *".cargo/bin"* ]]; then
-            echo "  ⚠️  [COLLISION] External binary detected: $tool ($TOOL_PATH)"
-            COLLISIONS=$((COLLISIONS + 1))
-        fi
+  if command -v "$tool" &>/dev/null; then
+    TOOL_PATH=$(command -v "$tool")
+    if [[ "$TOOL_PATH" != *".local/share/mise"* ]] && [[ "$TOOL_PATH" != *".local/bin/mise"* ]] && [[ "$TOOL_PATH" != *".cargo/bin"* ]]; then
+      echo "  ⚠️  [COLLISION] External binary detected: $tool ($TOOL_PATH)"
+      COLLISIONS=$((COLLISIONS + 1))
     fi
+  fi
 done
 
 if [ "$COLLISIONS" -gt 0 ]; then
-    echo "❌ FATAL: Environment initialization aborted due to path conflicts."
-    exit 1
+  echo "❌ FATAL: Environment initialization aborted due to path conflicts."
+  exit 1
 fi
 
 # 3. MISE RUNTIME ENGINE
-if ! command -v mise &> /dev/null; then
-    echo "Bootstrapping mise execution engine..."
-    curl https://mise.run | sh
+if ! command -v mise &>/dev/null; then
+  echo "Bootstrapping mise execution engine..."
+  curl https://mise.run | sh
 fi
