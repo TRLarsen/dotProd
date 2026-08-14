@@ -132,3 +132,6 @@ function y() {
 	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
 	command rm -f -- "$tmp"
 }
+
+# Command that deletes git branches that have been merged/removed from the remote
+alias gitclean="git fetch -p && git branch -vv | awk '/: gone]/{print \$1}' | xargs -r git branch -d"
