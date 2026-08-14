@@ -6,7 +6,7 @@ machines from blank slates to Prod-ready.
 
 > [!NOTE]
 >
-> I acknowledge the use of the Gemini 3 family of Large Language Models
+> Large Language Models (Gemini and Claude) have been used extensively
 > throughout this project (including to write the below README). I have read
 > through all scripts/code, made edits where appropriate, and designed and
 > guided the system from a high level. I actively use this system.

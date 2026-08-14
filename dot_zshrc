@@ -134,4 +134,5 @@ function y() {
 }
 
 # Command that deletes git branches that have been merged/removed from the remote
+# This alias is safe and will not delete branches with unmerged changes
 alias gitclean="git fetch -p && git branch -vv | awk '/: gone]/{print \$1}' | xargs -r git branch -d"
