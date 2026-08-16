@@ -1,2 +1,11 @@
 .config/helix/runtime/
 .oh-my-zsh/
+
+# Repo documentation — lives at the source root for GitHub/Claude Code to
+# find, but must not be deployed into $HOME.
+README.md
+CLAUDE.md
+LICENSE
+
+# Reference file, not meant to be deployed to $HOME.
+prefs.js
