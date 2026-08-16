@@ -92,3 +92,20 @@ active = true  # Opts into this app's personal customization (Betterfox prefs + 
 "uBlock0@raymondhill.net" = "ublock-origin"
 "{446900e4-71c2-419f-a6a7-df9c091e268b}" = "bitwarden-password-manager"
 "floccus@handmadeideas.org" = "floccus"
+
+# Enforces a battery charge-limit on laptops using the `dell_laptop` kernel
+# driver (Dell Latitude/Inspiron/Precision/XPS). That driver only respects
+# charge_control_start/end_threshold when charge_types is set to "Custom" --
+# in the default "Fast"/"Standard"/"Adaptive" modes the thresholds are
+# silently ignored and the battery charges to 100% every time, accelerating
+# long-term capacity fade. `battery` is the power_supply name to target
+# (check `ls /sys/class/power_supply/` -- usually BAT0). 80% end is the
+# conventional longevity sweet spot (Li-ion aging accelerates above
+# ~80-90% state-of-charge); 50% start just means "don't resume charging
+# above 50%" -- it barely matters if the machine mostly stays plugged in,
+# since it'll simply sit parked at `end` instead of cycling. Comment out or
+# delete this table on hardware without that sysfs interface.
+[personal.battery_charge_threshold]
+battery = "BAT0"
+start = 50
+end = 80
