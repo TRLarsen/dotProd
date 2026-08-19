@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Personal, opt-in Firefox configuration -- see [personal] in .chezmoidata.toml.
-# Targets the NATIVE Firefox package (installed via [system_tools]), not a
-# Flatpak. This is a plain run_after_ script (not run_onchange_after_), so it
+# Targets the NATIVE Firefox package (installed via [gui_apps]'s
+# native = true path in run_onchange_before_03), not a Flatpak. This is a
+# plain run_after_ script (not run_onchange_after_), so it
 # re-runs on every `chezmoi apply` to pick up newly created profiles and stay
 # current with upstream Betterfox -- every step below is cheap/idempotent.
 

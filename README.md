@@ -41,7 +41,8 @@ conflicts, `$PATH` collisions, and cross-platform breakages.
      environment isolation.
 4. **Desktop/GUI Layer (`[gui_apps]`):** \* Handled primarily via Flatpak to
    prevent "Double Icon Syndrome" and OS-level package conflicts, with fallbacks
-   for custom PPAs (e.g., Ghostty).
+   for custom PPAs (e.g., Ghostty) and an explicit opt-in to native
+   (apt/dnf/pacman) installs via `{ native = true }` (e.g., Firefox).
 
 ## ⚙️ The Execution Pipeline
 
@@ -83,7 +84,7 @@ helix = "hx"
 gh = "gh"
 
 [gui_apps]
-firefox = "org.mozilla.firefox"
+firefox = { native = true }  # installed via apt/dnf/pacman, package name = "firefox"
 ghostty = "ppa:mkasberg/ghostty-ubuntu"
 ```
 

@@ -13,7 +13,6 @@ flatpak = "latest"
 shfmt = "latest"
 clangd = "latest"
 lldb = "latest"
-firefox = "latest"  # Native package; see run_after_20_configure_firefox.sh.tmpl for opt-in prefs/extensions sync
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
@@ -70,6 +69,7 @@ ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
+firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's headless guard. See run_after_20_configure_firefox.sh.tmpl for opt-in prefs/extensions sync.
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)
