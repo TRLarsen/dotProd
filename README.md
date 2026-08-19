@@ -42,8 +42,9 @@ plus one opt-in personalization layer applied after everything else installs.
      environment isolation.
 4. **Desktop/GUI Layer (`[gui_apps]`):** \* Handled primarily via Flatpak to
    prevent "Double Icon Syndrome" and OS-level package conflicts, with fallbacks
-   for custom PPAs (e.g., Ghostty) and an explicit opt-in to native
-   (apt/dnf/pacman) installs via `{ native = true }` (e.g., Firefox).
+   for custom install scripts (e.g., Ghostty's official installer) and an
+   explicit opt-in to native (`apt`/`dnf`/`pacman`) installs via `{ native = true }`
+   (e.g., Firefox).
 5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings,
    namespaced per app (e.g. `[personal.firefox]` for preferences/extensions).
    - Applied by a single generic `run_after_20_configure_personal.sh.tmpl`
@@ -104,7 +105,7 @@ gh = "gh"
 
 [gui_apps]
 firefox = { native = true }  # installed via apt/dnf/pacman, package name = "firefox"
-ghostty = "ppa:mkasberg/ghostty-ubuntu"
+ghostty = "custom_script"  # value unused; installed via .scripts/gui/ghostty.sh.tmpl
 ```
 
 ## 🚀 How to Extend the System

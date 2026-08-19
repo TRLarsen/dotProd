@@ -65,7 +65,7 @@ yazi = "ya" # Terminal file manager
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
 # ===============================================================
 [gui_apps]
-ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
+ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh.tmpl (official mkasberg/ghostty-ubuntu installer)
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
