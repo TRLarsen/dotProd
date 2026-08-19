@@ -24,8 +24,9 @@ scripts.
 
 ## 🏗️ Architecture
 
-The system is separated into four distinct domains to prevent permissions
-conflicts, `$PATH` collisions, and cross-platform breakages.
+The system is separated into four distinct install domains (to prevent
+permissions conflicts, `$PATH` collisions, and cross-platform breakages),
+plus one opt-in personalization layer applied after everything else installs.
 
 1. **System Layer (`[system_tools]`):** \* Handled by the native OS package
    manager (APT, DNF, Pacman).
@@ -43,6 +44,12 @@ conflicts, `$PATH` collisions, and cross-platform breakages.
    prevent "Double Icon Syndrome" and OS-level package conflicts, with fallbacks
    for custom PPAs (e.g., Ghostty) and an explicit opt-in to native
    (apt/dnf/pacman) installs via `{ native = true }` (e.g., Firefox).
+5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings tied to
+   a specific app (e.g. Firefox preferences/extensions).
+   - Applied by a `run_after_NN_configure_<app>.sh.tmpl` script that reruns
+     on every apply and always gates on the target app actually being
+     installed first, so these settings are a safe no-op on machines that
+     don't have that app.
 
 ## ⚙️ The Execution Pipeline
 
@@ -58,7 +65,13 @@ are all prefixed by `run_[onchange_before/after]` and suffixed by `.sh[.tmpl]`.
   an `apt` installed version of a tool `mise` is trying to manage) are found in
   the `$PATH`, the pipeline halts to prevent environment corruption.
 - **`03_install_gui_apps`**: Detects if a display server (Wayland/X11) is
-  active. If true, configures Flathub and provisions desktop applications.
+  active. If true, configures Flathub and provisions desktop applications
+  (via Flatpak, a custom script, or natively via the OS package manager for
+  `{ native = true }` entries).
+- **`20_configure_firefox`**: (Run-After Phase) Applies `[personal]`
+  Firefox settings (Betterfox prefs + enterprise-policy extensions), gated
+  on Firefox actually being installed. Reruns every apply, unlike the
+  `run_onchange_` install scripts above.
 - **`90_integrations`**: (Run-After Phase) Executes glue logic, such as
   symlinking system-installed debuggers (LLDB) into the user paths expected by
   terminal editors. This script is currently not standardized and must be

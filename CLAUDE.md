@@ -19,7 +19,8 @@ over the README's prose when they disagree.
 ## Core architecture: the Data-Driven Dispatcher
 
 All machine state is declared in `.chezmoidata.toml`, which is organized into
-four tiers, each installed by a different mechanism:
+four installer tiers, each installed by a different mechanism, plus one
+opt-in personalization tier layered on top:
 
 1. **`[system_tools]`** — native OS packages requiring `sudo` (apt/dnf/pacman,
    auto-detected from `.chezmoi.osRelease.id`). Installed by
@@ -39,9 +40,27 @@ four tiers, each installed by a different mechanism:
    after `private_dot_config/mise/config.toml.tmpl` has rendered the `[tools]`
    table from this same data.
 4. **`[gui_apps]`** — desktop apps, installed via Flatpak by default, or a
-   custom script if one exists. Installed by
-   `run_onchange_before_03_install_gui_apps.sh.tmpl`, gated on a display
-   server (`$WAYLAND_DISPLAY`/`$DISPLAY`) being present.
+   custom script if one exists, or natively via `apt`/`dnf`/`pacman` if the
+   entry is a table with `native = true` (e.g. `firefox = { native = true }`).
+   Installed by `run_onchange_before_03_install_gui_apps.sh.tmpl`, gated on a
+   display server (`$WAYLAND_DISPLAY`/`$DISPLAY`) being present — this gate
+   applies to native entries too, so an app marked `native = true` is still
+   skipped entirely on headless machines/SSH sessions.
+5. **`[personal]`** — opinionated, per-machine opt-in settings tied to a
+   specific app (e.g. `firefox_prefs`, `firefox_extensions`). Not part of the
+   install dispatcher above; applied by a plain
+   `run_after_NN_configure_<app>.sh.tmpl` script (e.g.
+   `run_after_20_configure_firefox.sh.tmpl`) that reruns on *every* `chezmoi
+   apply` (deliberately `run_after_`, not `run_onchange_after_`, so it also
+   picks up state that changes outside `.chezmoidata.toml`, like a
+   newly-created browser profile). **Every such script must gate on the
+   target app's presence** (`command -v <app>` or equivalent) as its first
+   real statement, before touching any `[personal]` data — this keeps
+   `[personal]` settings a safe no-op on machines where that app was never
+   installed (headless, commented out of `[gui_apps]`/`[system_tools]`,
+   etc.), rather than erroring or writing config for software that isn't
+   there. See `run_after_20_configure_firefox.sh.tmpl` for the reference
+   implementation of this pattern.
 
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
@@ -50,11 +69,14 @@ adapter to `~/.local/bin/lldb-dap` for Helix).
 ### Execution order
 
 Chezmoi runs scripts in lexical order of their `run_*` prefix
-(`before_01` → `before_02` → `before_03` → `after_10` → `after_90`), so
-system packages exist before toolchains, toolchains before mise, mise before
-GUI apps, and everything before the final integrations pass. `onchange`
-scripts are hashed by chezmoi and only re-run when their content (or, for the
-mise script, the `Hash: {{ .user_tools | toJson | sha256sum }}` comment) changes.
+(`before_01` → `before_02` → `before_03` → `after_10` → `after_20` →
+`after_90`), so system packages exist before toolchains, toolchains before
+mise, mise before GUI apps, and everything before the personalization and
+final integrations passes. `onchange` scripts are hashed by chezmoi and only
+re-run when their content (or, for the mise script, the `Hash: {{
+.user_tools | toJson | sha256sum }}` comment) changes — `after_20`-style
+`[personal]` scripts are plain `run_after_` (not `run_onchange_after_`) and
+so always re-run, relying on their own idempotency/gating instead.
 
 ### The collision-detection guard
 
@@ -90,6 +112,17 @@ execution) if they need OS conditionals — see `.scripts/gui/ghostty.sh.tmpl`
 for the pattern (checks `.chezmoi.osRelease.id` for ubuntu/debian vs fedora).
 Every script should be idempotent: check `command -v <tool>` (or equivalent)
 before doing work, and `set -euo pipefail` at the top.
+
+**Personal, app-linked settings** (a new key under `[personal]`, e.g. a
+future `bitwarden_prefs`): create `run_after_NN_configure_<app>.sh.tmpl`
+(pick `NN` after `10`/before `90`; `20` is taken by firefox). As its first
+real statement — before any `{{ if index .personal ... }}` template logic —
+the script must gate on the target app actually being present (`command -v
+<app>` or equivalent), then `exit 0` if it's not. This is what makes
+`[personal]` entries safe to leave declared even on machines that don't
+install that app (headless boxes, or the app commented out of
+`[gui_apps]`/`[system_tools]`). Follow
+`run_after_20_configure_firefox.sh.tmpl` as the reference implementation.
 
 ## Chezmoi file-naming conventions in this repo
 
