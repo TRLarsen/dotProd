@@ -66,7 +66,26 @@ yazi = "ya" # Terminal file manager
 # ===============================================================
 [gui_apps]
 ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
-firefox = "org.mozilla.firefox"  # Passed to native Flatpak fallback
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
+firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's headless guard. See .scripts/personal/firefox/configure.sh.tmpl for opt-in prefs/extensions sync.
+
+# ===============================================================
+# 5. PERSONAL LAYER (Optional, per-machine opt-in)
+# ===============================================================
+# Opinionated, user-specific customizations that not everyone forking this
+# repo will want. Nothing here is required by the core dispatcher scripts;
+# comment out a line to skip that customization on a given machine.
+[personal.firefox]
+active = true  # Opts into this app's personal customization (Betterfox prefs + enterprise-policy extensions below). Enforced centrally by run_after_20_configure_personal.sh.tmpl -- the per-app script isn't even invoked when this is false.
+
+# Extensions to force-install via Firefox's enterprise policy engine (can't be
+# disabled/removed by accident; installed with no user prompt). Key = the
+# extension's ID (from about:debugging or its manifest), value = its AMO
+# ("addons.mozilla.org") URL slug. Add/remove/comment a line to change what
+# gets installed.
+[personal.firefox.extensions]
+"uBlock0@raymondhill.net" = "ublock-origin"
+"{446900e4-71c2-419f-a6a7-df9c091e268b}" = "bitwarden-password-manager"
+"floccus@handmadeideas.org" = "floccus"

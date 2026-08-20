@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+# Generic dispatcher for the [personal] layer -- see .chezmoidata.toml.
+# Every app-specific customization script lives at
+# .scripts/personal/<app>/configure.sh.tmpl; this script discovers and runs
+# each one, in the same way run_onchange_before_03 dispatches to
+# .scripts/gui/<app>.sh.tmpl. This is a plain run_after_ script (not
+# run_onchange_after_), so it reruns on every `chezmoi apply` -- each
+# per-app script is responsible for its own idempotency and for gating on
+# its target app actually being installed (see
+# .scripts/personal/firefox/configure.sh.tmpl for the reference
+# implementation).
+#
+# The `active` flag is checked HERE, not by the per-app script -- a
+# [personal.<app>] table with `active = false` (or no `active` key at all)
+# means the script below is never invoked, even if the script itself
+# doesn't check for that flag. This keeps the enable/disable switch
+# centralized instead of relying on every per-app script to reimplement it.
+
+{{ range $app, $settings := .personal }}
+{{- if and (kindIs "map" $settings) (index $settings "active") }}
+SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/personal/{{ $app }}/configure.sh.tmpl"
+if [[ -f "$SCRIPT_PATH" ]]; then
+    echo "🔧 Applying personal configuration for {{ $app }}..."
+    chezmoi execute-template <"$SCRIPT_PATH" | bash
+else
+    echo "⚠️  [personal.{{ $app }}] is active but no script found at .scripts/personal/{{ $app }}/configure.sh.tmpl" >&2
+fi
+{{ end -}}
+{{ end -}}

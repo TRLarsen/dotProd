@@ -9,18 +9,68 @@ fi
 
 echo "Display server detected. Validating GUI elements..."
 
+# Pre-pass: does any [gui_apps] entry opt into native = true? Only then do we
+# need to resolve PKG_MANAGER / run apt-get update below -- avoids a wasted
+# apt-get update (and sudo prompt) on machines with no native gui_apps entries.
+{{- $has_native := false }}
+{{- range $app, $app_identifier := .gui_apps }}
+{{- if and (kindIs "map" $app_identifier) (hasKey $app_identifier "native") $app_identifier.native }}
+{{- $has_native = true }}
+{{- end }}
+{{- end }}
+{{ if $has_native }}
+# Determine the native package manager based on OS (mirrors
+# run_onchange_before_01; only needed because at least one [gui_apps] entry
+# sets native = true).
+{{ if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
+    PKG_MANAGER="sudo apt-get install -y"
+    echo "Updating system package lists..."
+    sudo apt-get update -y
+{{ else if eq .chezmoi.osRelease.id "fedora" }}
+    PKG_MANAGER="sudo dnf install -y"
+{{ else if eq .chezmoi.osRelease.id "arch" }}
+    PKG_MANAGER="sudo pacman -S --noconfirm"
+{{ else }}
+    echo "❌ Unsupported operating system topology."
+    exit 1
+{{ end }}
+{{ end }}
+
 # Ensure Flathub is registered before processing apps
 if command -v flatpak &> /dev/null; then
     sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 fi
 
 {{ range $app, $app_identifier := .gui_apps }}
+{{- $is_native := false }}
+{{- if kindIs "map" $app_identifier }}
+{{-   if not (hasKey $app_identifier "native") }}
+{{-     fail (printf "gui_apps.%s is a table but has no 'native' key; the only supported table form is { native = true }" $app) }}
+{{-   else if not $app_identifier.native }}
+{{-     fail (printf "gui_apps.%s sets native = false; remove native, use a plain Flatpak-ID string instead, or set native = true" $app) }}
+{{-   else }}
+{{-     $is_native = true }}
+{{-   end }}
+{{- end }}
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/gui/{{ $app }}.sh.tmpl"
 
-# 1. Try a custom script first
+# 1. Try a custom script first (always wins, whether native or Flatpak)
 if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🖥️  Running custom GUI installer for {{ $app }}..."
-    # Render the template via chezmoi first, then pipe to bash with $1 set to $app_identifier
+    # Render the template via chezmoi first, then pipe to bash with $1 set to
+    # the resolved package name (native entries) or the raw TOML value
+    # (Flatpak entries).
+{{ if $is_native }}
+    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
+
+# 2. Native install via the OS package manager (native = true)
+elif command -v {{ $app }} &> /dev/null; then
+    echo "✔ {{ $app }} is already installed (native)."
+else
+    echo "📦 Installing {{ $app }} via native package manager..."
+    $PKG_MANAGER "{{ $app }}"
+fi
+{{ else }}
     chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
 
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
@@ -33,7 +83,19 @@ elif command -v flatpak &> /dev/null; then
     fi
 
     echo "📦 Checking Flatpak installation for {{ $app }}..."
-    
+
+    # DUPLICATE-INSTALL GUARD: if a native package already ships a desktop
+    # entry under this exact Flatpak app ID, installing the Flatpak on top
+    # would silently create two colliding "{{ $app }}" launchers (Double Icon
+    # Syndrome) instead of one obvious winner.
+    NATIVE_DESKTOP_FILE="/usr/share/applications/{{ $app_identifier }}.desktop"
+    if [[ -f "$NATIVE_DESKTOP_FILE" && ! -L "$NATIVE_DESKTOP_FILE" ]]; then
+        echo "❌ Error: A native package already provides {{ $app }} ($NATIVE_DESKTOP_FILE exists)."
+        echo "Installing the Flatpak ({{ $app_identifier }}) on top would duplicate it."
+        echo "Either uninstall the native package, or remove '{{ $app }}' from [gui_apps] in .chezmoidata.toml."
+        exit 1
+    fi
+
     if ! flatpak list | grep -q "{{ $app_identifier }}"; then
         echo "Installing {{ $app_identifier }}..."
         sudo flatpak install -y flathub "{{ $app_identifier }}"
@@ -43,4 +105,5 @@ elif command -v flatpak &> /dev/null; then
 else
     echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
 fi
+{{ end }}
 {{ end }}
