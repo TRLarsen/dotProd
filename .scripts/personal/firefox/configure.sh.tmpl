@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Personal, opt-in Firefox configuration -- see [personal.firefox] in
-# .chezmoidata.toml. Invoked generically by run_after_20_configure_personal.sh.tmpl.
-# Targets the NATIVE Firefox package (installed via [gui_apps]'s
+# .chezmoidata.toml. Only invoked by run_after_20_configure_personal.sh.tmpl
+# when [personal.firefox].active is true (checked centrally there, not
+# here). Targets the NATIVE Firefox package (installed via [gui_apps]'s
 # native = true path in run_onchange_before_03), not a Flatpak. Reruns on
 # every `chezmoi apply` (via the generic personal dispatcher) to pick up
 # newly created profiles and stay current with upstream Betterfox -- every
@@ -13,10 +14,7 @@ if ! command -v firefox &> /dev/null; then
     exit 0
 fi
 
-{{ if index . "personal" -}}
-{{ if index .personal "firefox" -}}
 {{ $firefox := index .personal "firefox" }}
-{{ if index $firefox "prefs" -}}
 echo "🔧 Syncing Betterfox + personal Firefox preferences..."
 
 BETTERFOX_URL="https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js"
@@ -74,7 +72,6 @@ else
         done
     fi
 fi
-{{ end -}}
 
 {{ if index $firefox "extensions" -}}
 {{- $exts := index $firefox "extensions" }}
@@ -100,7 +97,5 @@ sudo tee "$POLICY_DIR/policies.json" >/dev/null <<'POLICY_EOF'
 }
 POLICY_EOF
 echo "  ✔ Wrote required-extensions policy ($POLICY_DIR/policies.json, {{ len $exts }} extension(s)). Restart Firefox to apply."
-{{ end -}}
-{{ end -}}
 {{ end -}}
 {{ end -}}

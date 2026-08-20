@@ -47,11 +47,13 @@ plus one opt-in personalization layer applied after everything else installs.
 5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings,
    namespaced per app (e.g. `[personal.firefox]` for preferences/extensions).
    - Applied by a single generic `run_after_20_configure_personal.sh.tmpl`
-     dispatcher that reruns on every apply and discovers/runs every
-     `.scripts/personal/<app>/configure.sh.tmpl` on disk. Each per-app
-     script always gates on the target app actually being installed first,
-     so these settings are a safe no-op on machines that don't have that
-     app.
+     dispatcher that reruns on every apply. Each app opts in with
+     `active = true`; the dispatcher checks that flag itself and only runs
+     `.scripts/personal/<app>/configure.sh.tmpl` for apps where it's true,
+     so a script can't accidentally run just because it forgot to check.
+     Each per-app script additionally gates on the target app actually
+     being installed, so these settings are a safe no-op on machines that
+     don't have that app.
 
 ## ⚙️ The Execution Pipeline
 
@@ -131,14 +133,17 @@ TOML value to it as `$1`.
 ### 3. Adding a Personal, App-Linked Setting
 
 Opt-in per-machine customizations (e.g. Firefox prefs) live under
-`[personal.<app>]` in `.chezmoidata.toml` and are applied by their own
-script at `~/.local/share/chezmoi/.scripts/personal/<app>/configure.sh.tmpl`.
-Unlike the tiers above, there's a single generic
-`run_after_20_configure_personal.sh.tmpl` dispatcher — it just discovers and
-runs every `configure.sh.tmpl` it finds under `.scripts/personal/`, so
-adding a new app needs no changes to the dispatcher itself. Each script
-reads its own settings straight out of `.personal.<app>` and must gate on
-the target app actually being installed before doing anything else. See
+`[personal.<app>]` in `.chezmoidata.toml`, gated by an `active = true` key,
+and are applied by their own script at
+`~/.local/share/chezmoi/.scripts/personal/<app>/configure.sh.tmpl`. Unlike
+the tiers above, there's a single generic `run_after_20_configure_personal.sh.tmpl`
+dispatcher — it loops over every `[personal.<app>]` table, and for each one
+where `active` is `true` it runs that app's `configure.sh.tmpl`, so adding a
+new app needs no changes to the dispatcher itself. The `active` check lives
+in the dispatcher, not the script, so setting it to `false` reliably turns
+an app's customization off. Each script reads its own settings straight out
+of `.personal.<app>` and must still gate on the target app actually being
+installed before doing anything else. See
 `.scripts/personal/firefox/configure.sh.tmpl` for the reference
 implementation.
 

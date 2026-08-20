@@ -78,7 +78,7 @@ firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's he
 # repo will want. Nothing here is required by the core dispatcher scripts;
 # comment out a line to skip that customization on a given machine.
 [personal.firefox]
-prefs = true  # Inject Betterfox (sourced live) + curated overrides into Firefox's user.js
+active = true  # Opts into this app's personal customization (Betterfox prefs + enterprise-policy extensions below). Enforced centrally by run_after_20_configure_personal.sh.tmpl -- the per-app script isn't even invoked when this is false.
 
 # Extensions to force-install via Firefox's enterprise policy engine (can't be
 # disabled/removed by accident; installed with no user prompt). Key = the

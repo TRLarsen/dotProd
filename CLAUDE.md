@@ -47,22 +47,26 @@ opt-in personalization tier layered on top:
    applies to native entries too, so an app marked `native = true` is still
    skipped entirely on headless machines/SSH sessions.
 5. **`[personal]`** — opinionated, per-machine opt-in settings, namespaced
-   per app (e.g. `[personal.firefox]` with a `prefs` key and a nested
+   per app (e.g. `[personal.firefox]` with an `active` key and a nested
    `[personal.firefox.extensions]` table). Not part of the install
    dispatcher above; applied by the generic
    `run_after_20_configure_personal.sh.tmpl` dispatcher, which reruns on
    *every* `chezmoi apply` (deliberately `run_after_`, not
    `run_onchange_after_`, so it also picks up state that changes outside
-   `.chezmoidata.toml`, like a newly-created browser profile) and discovers
-   + runs every `.scripts/personal/<app>/configure.sh.tmpl` it finds on
-   disk. **Every such per-app script must gate on the target app's
-   presence** (`command -v <app>` or equivalent) as its first real
-   statement, before touching any `[personal]` data — this keeps
-   `[personal]` settings a safe no-op on machines where that app was never
-   installed (headless, commented out of `[gui_apps]`/`[system_tools]`,
-   etc.), rather than erroring or writing config for software that isn't
-   there. See `.scripts/personal/firefox/configure.sh.tmpl` for the
-   reference implementation of this pattern.
+   `.chezmoidata.toml`, like a newly-created browser profile). It Go-template
+   `range`s over `.personal` and, for each app whose table has `active =
+   true`, runs `.scripts/personal/<app>/configure.sh.tmpl` — **the `active`
+   check happens in the dispatcher itself**, not in the per-app script, so a
+   `[personal.<app>]` table with `active = false` (or no `active` key)
+   reliably disables that app's script even if the script forgot to check.
+   **Every per-app script must still gate on the target app's presence**
+   (`command -v <app>` or equivalent) as its first real statement — that
+   part is orthogonal to `active` and keeps the script a safe no-op if the
+   app itself isn't installed (headless, commented out of
+   `[gui_apps]`/`[system_tools]`, etc.), rather than erroring or writing
+   config for software that isn't there. See
+   `.scripts/personal/firefox/configure.sh.tmpl` for the reference
+   implementation of this pattern.
 
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
@@ -117,20 +121,23 @@ Every script should be idempotent: check `command -v <tool>` (or equivalent)
 before doing work, and `set -euo pipefail` at the top.
 
 **Personal, app-linked settings** (a new `[personal.<app>]` table, e.g. a
-future `[personal.bitwarden]`): add the table to `.chezmoidata.toml`, then
-create `.scripts/personal/<app>/configure.sh.tmpl`. No changes to
-`run_after_20_configure_personal.sh.tmpl` are needed — it's a generic
-dispatcher that discovers every `.scripts/personal/*/configure.sh.tmpl` on
-disk and runs it (rendering each through `chezmoi execute-template` first,
-same as the GUI dispatcher, but with no `$1` — per-app scripts read their
-own settings straight out of `.personal.<app>` via `{{ index .personal
-"<app>" ... }}`). As its first real statement — before any
-`{{ if index .personal ... }}` template logic — the script must gate on the
-target app actually being present (`command -v <app>` or equivalent), then
-`exit 0` if it's not. This is what makes `[personal]` entries safe to leave
-declared even on machines that don't install that app (headless boxes, or
-the app commented out of `[gui_apps]`/`[system_tools]`). Follow
-`.scripts/personal/firefox/configure.sh.tmpl` as the reference
+future `[personal.bitwarden]`): add the table to `.chezmoidata.toml` with an
+`active = true` key, then create `.scripts/personal/<app>/configure.sh.tmpl`.
+No changes to `run_after_20_configure_personal.sh.tmpl` are needed — it Go-
+template `range`s over `.personal`, and for every app whose table has
+`active = true` it renders `.scripts/personal/<app>/configure.sh.tmpl`
+through `chezmoi execute-template` and runs it (same rendering approach as
+the GUI dispatcher, but with no `$1` — per-app scripts read their own
+settings straight out of `.personal.<app>` via `{{ index .personal "<app>"
+... }}`). Because the dispatcher already filters on `active`, the per-app
+script doesn't need to (and shouldn't bother) re-checking it — sub-features
+within a script (like Firefox's `extensions` table) can still have their own
+finer-grained checks. As its first real statement the script must instead
+gate on the target app actually being present (`command -v <app>` or
+equivalent), then `exit 0` if it's not — that's what makes `[personal]`
+entries safe to leave declared even on machines that don't install that app
+(headless boxes, or the app commented out of `[gui_apps]`/`[system_tools]`).
+Follow `.scripts/personal/firefox/configure.sh.tmpl` as the reference
 implementation — co-locate any non-script assets it needs (e.g. its
 `user-overrides.js`) in the same `.scripts/personal/<app>/` directory.
 
