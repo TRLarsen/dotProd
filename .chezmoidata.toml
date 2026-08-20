@@ -69,7 +69,7 @@ ghostty = "ppa:mkasberg/ghostty-ubuntu"  # Passed to custom ghostty.sh script
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
-firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's headless guard. See run_after_20_configure_firefox.sh.tmpl for opt-in prefs/extensions sync.
+firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's headless guard. See .scripts/personal/firefox/configure.sh.tmpl for opt-in prefs/extensions sync.
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)
@@ -77,15 +77,15 @@ firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's he
 # Opinionated, user-specific customizations that not everyone forking this
 # repo will want. Nothing here is required by the core dispatcher scripts;
 # comment out a line to skip that customization on a given machine.
-[personal]
-firefox_prefs = true  # Inject Betterfox (sourced live) + curated overrides into Firefox's user.js
+[personal.firefox]
+prefs = true  # Inject Betterfox (sourced live) + curated overrides into Firefox's user.js
 
 # Extensions to force-install via Firefox's enterprise policy engine (can't be
 # disabled/removed by accident; installed with no user prompt). Key = the
 # extension's ID (from about:debugging or its manifest), value = its AMO
 # ("addons.mozilla.org") URL slug. Add/remove/comment a line to change what
 # gets installed.
-[personal.firefox_extensions]
+[personal.firefox.extensions]
 "uBlock0@raymondhill.net" = "ublock-origin"
 "{446900e4-71c2-419f-a6a7-df9c091e268b}" = "bitwarden-password-manager"
 "floccus@handmadeideas.org" = "floccus"

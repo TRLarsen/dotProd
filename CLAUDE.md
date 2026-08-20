@@ -46,21 +46,23 @@ opt-in personalization tier layered on top:
    display server (`$WAYLAND_DISPLAY`/`$DISPLAY`) being present — this gate
    applies to native entries too, so an app marked `native = true` is still
    skipped entirely on headless machines/SSH sessions.
-5. **`[personal]`** — opinionated, per-machine opt-in settings tied to a
-   specific app (e.g. `firefox_prefs`, `firefox_extensions`). Not part of the
-   install dispatcher above; applied by a plain
-   `run_after_NN_configure_<app>.sh.tmpl` script (e.g.
-   `run_after_20_configure_firefox.sh.tmpl`) that reruns on *every* `chezmoi
-   apply` (deliberately `run_after_`, not `run_onchange_after_`, so it also
-   picks up state that changes outside `.chezmoidata.toml`, like a
-   newly-created browser profile). **Every such script must gate on the
-   target app's presence** (`command -v <app>` or equivalent) as its first
-   real statement, before touching any `[personal]` data — this keeps
+5. **`[personal]`** — opinionated, per-machine opt-in settings, namespaced
+   per app (e.g. `[personal.firefox]` with a `prefs` key and a nested
+   `[personal.firefox.extensions]` table). Not part of the install
+   dispatcher above; applied by the generic
+   `run_after_20_configure_personal.sh.tmpl` dispatcher, which reruns on
+   *every* `chezmoi apply` (deliberately `run_after_`, not
+   `run_onchange_after_`, so it also picks up state that changes outside
+   `.chezmoidata.toml`, like a newly-created browser profile) and discovers
+   + runs every `.scripts/personal/<app>/configure.sh.tmpl` it finds on
+   disk. **Every such per-app script must gate on the target app's
+   presence** (`command -v <app>` or equivalent) as its first real
+   statement, before touching any `[personal]` data — this keeps
    `[personal]` settings a safe no-op on machines where that app was never
    installed (headless, commented out of `[gui_apps]`/`[system_tools]`,
    etc.), rather than erroring or writing config for software that isn't
-   there. See `run_after_20_configure_firefox.sh.tmpl` for the reference
-   implementation of this pattern.
+   there. See `.scripts/personal/firefox/configure.sh.tmpl` for the
+   reference implementation of this pattern.
 
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
@@ -74,9 +76,10 @@ Chezmoi runs scripts in lexical order of their `run_*` prefix
 mise, mise before GUI apps, and everything before the personalization and
 final integrations passes. `onchange` scripts are hashed by chezmoi and only
 re-run when their content (or, for the mise script, the `Hash: {{
-.user_tools | toJson | sha256sum }}` comment) changes — `after_20`-style
-`[personal]` scripts are plain `run_after_` (not `run_onchange_after_`) and
-so always re-run, relying on their own idempotency/gating instead.
+.user_tools | toJson | sha256sum }}` comment) changes —
+`run_after_20_configure_personal.sh.tmpl` and the per-app scripts it
+dispatches to are plain `run_after_` (not `run_onchange_after_`) and so
+always re-run, relying on their own idempotency/gating instead.
 
 ### The collision-detection guard
 
@@ -113,16 +116,23 @@ for the pattern (checks `.chezmoi.osRelease.id` for ubuntu/debian vs fedora).
 Every script should be idempotent: check `command -v <tool>` (or equivalent)
 before doing work, and `set -euo pipefail` at the top.
 
-**Personal, app-linked settings** (a new key under `[personal]`, e.g. a
-future `bitwarden_prefs`): create `run_after_NN_configure_<app>.sh.tmpl`
-(pick `NN` after `10`/before `90`; `20` is taken by firefox). As its first
-real statement — before any `{{ if index .personal ... }}` template logic —
-the script must gate on the target app actually being present (`command -v
-<app>` or equivalent), then `exit 0` if it's not. This is what makes
-`[personal]` entries safe to leave declared even on machines that don't
-install that app (headless boxes, or the app commented out of
-`[gui_apps]`/`[system_tools]`). Follow
-`run_after_20_configure_firefox.sh.tmpl` as the reference implementation.
+**Personal, app-linked settings** (a new `[personal.<app>]` table, e.g. a
+future `[personal.bitwarden]`): add the table to `.chezmoidata.toml`, then
+create `.scripts/personal/<app>/configure.sh.tmpl`. No changes to
+`run_after_20_configure_personal.sh.tmpl` are needed — it's a generic
+dispatcher that discovers every `.scripts/personal/*/configure.sh.tmpl` on
+disk and runs it (rendering each through `chezmoi execute-template` first,
+same as the GUI dispatcher, but with no `$1` — per-app scripts read their
+own settings straight out of `.personal.<app>` via `{{ index .personal
+"<app>" ... }}`). As its first real statement — before any
+`{{ if index .personal ... }}` template logic — the script must gate on the
+target app actually being present (`command -v <app>` or equivalent), then
+`exit 0` if it's not. This is what makes `[personal]` entries safe to leave
+declared even on machines that don't install that app (headless boxes, or
+the app commented out of `[gui_apps]`/`[system_tools]`). Follow
+`.scripts/personal/firefox/configure.sh.tmpl` as the reference
+implementation — co-locate any non-script assets it needs (e.g. its
+`user-overrides.js`) in the same `.scripts/personal/<app>/` directory.
 
 ## Chezmoi file-naming conventions in this repo
 

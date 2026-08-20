@@ -44,12 +44,14 @@ plus one opt-in personalization layer applied after everything else installs.
    prevent "Double Icon Syndrome" and OS-level package conflicts, with fallbacks
    for custom PPAs (e.g., Ghostty) and an explicit opt-in to native
    (apt/dnf/pacman) installs via `{ native = true }` (e.g., Firefox).
-5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings tied to
-   a specific app (e.g. Firefox preferences/extensions).
-   - Applied by a `run_after_NN_configure_<app>.sh.tmpl` script that reruns
-     on every apply and always gates on the target app actually being
-     installed first, so these settings are a safe no-op on machines that
-     don't have that app.
+5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings,
+   namespaced per app (e.g. `[personal.firefox]` for preferences/extensions).
+   - Applied by a single generic `run_after_20_configure_personal.sh.tmpl`
+     dispatcher that reruns on every apply and discovers/runs every
+     `.scripts/personal/<app>/configure.sh.tmpl` on disk. Each per-app
+     script always gates on the target app actually being installed first,
+     so these settings are a safe no-op on machines that don't have that
+     app.
 
 ## ⚙️ The Execution Pipeline
 
@@ -68,9 +70,11 @@ are all prefixed by `run_[onchange_before/after]` and suffixed by `.sh[.tmpl]`.
   active. If true, configures Flathub and provisions desktop applications
   (via Flatpak, a custom script, or natively via the OS package manager for
   `{ native = true }` entries).
-- **`20_configure_firefox`**: (Run-After Phase) Applies `[personal]`
-  Firefox settings (Betterfox prefs + enterprise-policy extensions), gated
-  on Firefox actually being installed. Reruns every apply, unlike the
+- **`20_configure_personal`**: (Run-After Phase) Generic dispatcher for the
+  `[personal]` layer — discovers and runs every
+  `.scripts/personal/<app>/configure.sh.tmpl` on disk (e.g. Firefox's
+  Betterfox prefs + enterprise-policy extensions), each gated on its target
+  app actually being installed. Reruns every apply, unlike the
   `run_onchange_` install scripts above.
 - **`90_integrations`**: (Run-After Phase) Executes glue logic, such as
   symlinking system-installed debuggers (LLDB) into the user paths expected by
@@ -123,6 +127,20 @@ execution, or pre-installation cleanup:
 
 The dispatcher will automatically detect the script, execute it, and pass the
 TOML value to it as `$1`.
+
+### 3. Adding a Personal, App-Linked Setting
+
+Opt-in per-machine customizations (e.g. Firefox prefs) live under
+`[personal.<app>]` in `.chezmoidata.toml` and are applied by their own
+script at `~/.local/share/chezmoi/.scripts/personal/<app>/configure.sh.tmpl`.
+Unlike the tiers above, there's a single generic
+`run_after_20_configure_personal.sh.tmpl` dispatcher — it just discovers and
+runs every `configure.sh.tmpl` it finds under `.scripts/personal/`, so
+adding a new app needs no changes to the dispatcher itself. Each script
+reads its own settings straight out of `.personal.<app>` and must gate on
+the target app actually being installed before doing anything else. See
+`.scripts/personal/firefox/configure.sh.tmpl` for the reference
+implementation.
 
 ## 💻 Installation
 

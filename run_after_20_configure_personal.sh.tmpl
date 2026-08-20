@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+# Generic dispatcher for the [personal] layer -- see .chezmoidata.toml.
+# Every app-specific customization script lives at
+# .scripts/personal/<app>/configure.sh.tmpl; this script just discovers and
+# runs each one, in the same way run_onchange_before_03 dispatches to
+# .scripts/gui/<app>.sh.tmpl. This is a plain run_after_ script (not
+# run_onchange_after_), so it reruns on every `chezmoi apply` -- each
+# per-app script is responsible for its own idempotency and for gating on
+# its target app actually being installed (see
+# .scripts/personal/firefox/configure.sh.tmpl for the reference
+# implementation).
+
+PERSONAL_DIR="{{ $.chezmoi.sourceDir }}/.scripts/personal"
+
+[[ -d "$PERSONAL_DIR" ]] || exit 0
+
+for app_dir in "$PERSONAL_DIR"/*/; do
+    [[ -d "$app_dir" ]] || continue
+    app="$(basename "$app_dir")"
+    script="${app_dir}configure.sh.tmpl"
+    if [[ -f "$script" ]]; then
+        echo "🔧 Applying personal configuration for $app..."
+        chezmoi execute-template <"$script" | bash
+    fi
+done
