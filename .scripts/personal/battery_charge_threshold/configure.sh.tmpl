@@ -1,21 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-# Personal, opt-in battery charge-threshold enforcement -- see [personal] in
-# .chezmoidata.toml. The `dell_laptop` kernel driver only enforces
+# Personal, opt-in battery charge-threshold enforcement -- see
+# [personal.battery_charge_threshold] in .chezmoidata.toml. Only invoked by
+# run_after_20_configure_personal.sh.tmpl when
+# [personal.battery_charge_threshold].active is true (checked centrally
+# there, not here). The `dell_laptop` kernel driver only enforces
 # charge_control_start/end_threshold when charge_types is set to "Custom";
 # in the default "Fast"/"Standard"/"Adaptive" modes those thresholds are
 # silently ignored and the battery charges to 100% every time, accelerating
 # capacity fade. This installs a oneshot systemd service that re-applies
 # Custom mode + the configured thresholds on every boot (the EC can reset to
-# a non-Custom mode across firmware/power events) and applies it immediately.
-# This is a run_onchange_ script so it only re-runs (and re-prompts for
-# sudo) when the [personal.battery_charge_threshold] table actually changes.
-#
-# Hash: {{ if index . "personal" }}{{ if index .personal "battery_charge_threshold" }}{{ index .personal "battery_charge_threshold" | toJson | sha256sum }}{{ end }}{{ end }}
+# a non-Custom mode across firmware/power events) and applies it
+# immediately. Reruns on every `chezmoi apply` (via the generic personal
+# dispatcher) -- every step below is idempotent.
 
-{{ if index . "personal" -}}
-{{ if index .personal "battery_charge_threshold" -}}
 {{ $bct := index .personal "battery_charge_threshold" -}}
 {{ $battery := index $bct "battery" -}}
 {{ $start := index $bct "start" -}}
@@ -47,5 +46,3 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now dotprod-battery-charge-threshold.service
 
 echo "  ✔ Charge mode set to Custom, thresholds {{ $start }}%-{{ $end }}% (persists via systemd unit; re-applied every boot)."
-{{ end -}}
-{{ end -}}

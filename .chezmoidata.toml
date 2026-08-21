@@ -103,9 +103,9 @@ active = true  # Opts into this app's personal customization (Betterfox prefs + 
 # conventional longevity sweet spot (Li-ion aging accelerates above
 # ~80-90% state-of-charge); 50% start just means "don't resume charging
 # above 50%" -- it barely matters if the machine mostly stays plugged in,
-# since it'll simply sit parked at `end` instead of cycling. Comment out or
-# delete this table on hardware without that sysfs interface.
+# since it'll simply sit parked at `end` instead of cycling.
 [personal.battery_charge_threshold]
+active = true  # Opts into this customization. Enforced centrally by run_after_20_configure_personal.sh.tmpl -- set to false (or delete this table) on hardware without the dell_laptop sysfs interface.
 battery = "BAT0"
 start = 50
 end = 80
