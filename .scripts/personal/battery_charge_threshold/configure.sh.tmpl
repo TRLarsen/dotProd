@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+# Personal, opt-in battery charge-threshold enforcement -- see
+# [personal.battery_charge_threshold] in .chezmoidata.toml. Only invoked by
+# run_after_20_configure_personal.sh.tmpl when
+# [personal.battery_charge_threshold].active is true (checked centrally
+# there, not here). The `dell_laptop` kernel driver only enforces
+# charge_control_start/end_threshold when charge_types is set to "Custom";
+# in the default "Fast"/"Standard"/"Adaptive" modes those thresholds are
+# silently ignored and the battery charges to 100% every time, accelerating
+# capacity fade. This installs a oneshot systemd service that re-applies
+# Custom mode + the configured thresholds on every boot (the EC can reset to
+# a non-Custom mode across firmware/power events) and applies it
+# immediately. Reruns on every `chezmoi apply` (via the generic personal
+# dispatcher) -- every step below is idempotent.
+
+{{ $bct := index .personal "battery_charge_threshold" -}}
+{{ $battery := index $bct "battery" -}}
+{{ $start := index $bct "start" -}}
+{{ $end := index $bct "end" -}}
+BATTERY_PATH="/sys/class/power_supply/{{ $battery }}"
+
+if [[ ! -f "$BATTERY_PATH/charge_types" ]]; then
+    echo "⚠️  $BATTERY_PATH/charge_types not found -- skipping battery charge threshold (no dell_laptop-managed battery here?)."
+    exit 0
+fi
+
+echo "🔋 Enforcing Custom charge mode + {{ $start }}%-{{ $end }}% threshold on $BATTERY_PATH..."
+
+UNIT_PATH="/etc/systemd/system/dotprod-battery-charge-threshold.service"
+sudo tee "$UNIT_PATH" >/dev/null <<EOF
+[Unit]
+Description=Enforce battery charge threshold (dotProd, personal opt-in)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo Custom > $BATTERY_PATH/charge_types; echo {{ $start }} > $BATTERY_PATH/charge_control_start_threshold; echo {{ $end }} > $BATTERY_PATH/charge_control_end_threshold'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now dotprod-battery-charge-threshold.service
+
+echo "  ✔ Charge mode set to Custom, thresholds {{ $start }}%-{{ $end }}% (persists via systemd unit; re-applied every boot)."
