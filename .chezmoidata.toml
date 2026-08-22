@@ -13,8 +13,11 @@ flatpak = "latest"
 shfmt = "latest"
 clangd = "latest"
 lldb = "latest"
-NetworkManager-strongswan = "latest"
-NetworkManager-strongswan-gnome = "latest"
+# Per-distro package names differ (Fedora capitalizes/hyphenates differently
+# than Debian/Ubuntu's naming scheme); each distro must have an entry or
+# `chezmoi apply` will fail loudly on that OS rather than guess a name.
+strongswan-vpn = { fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
+strongswan-vpn-gnome = { fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 nm-connection-editor = "latest"
 # wireshark = "latest" # Commented out, will be ignored
 
