@@ -19,16 +19,26 @@ echo "Processing system-level dependencies..."
 
 # Loop through all uncommented system tools
 {{ range $tool, $version := .system_tools }}
+{{- $pkgName := $tool }}
+{{- $pkgVersion := $version }}
+{{- if kindIs "map" $version }}
+{{- if not (hasKey $version $.chezmoi.osRelease.id) }}
+{{- fail (printf "system_tools[%q] has no entry for OS %q — add one or the install will silently guess wrong" $tool $.chezmoi.osRelease.id) }}
+{{- end }}
+{{- $osEntry := index $version $.chezmoi.osRelease.id }}
+{{- $pkgName = $osEntry.name }}
+{{- $pkgVersion = $osEntry.version }}
+{{- end }}
 if ! command -v {{ $tool }} &> /dev/null; then
     SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/daemons/{{ $tool }}.sh"
-    
+
     if [[ -f "$SCRIPT_PATH" ]]; then
-        echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $version }})..."
-        # We pass the TOML value to the script as $1
-        bash "$SCRIPT_PATH" "{{ $version }}"
+        echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $pkgVersion }})..."
+        # We pass the resolved version to the script as $1
+        bash "$SCRIPT_PATH" "{{ $pkgVersion }}"
     else
-        echo "📥 Installing {{ $tool }} via system package manager..."
-        $PKG_MANAGER "{{ $tool }}"
+        echo "📥 Installing {{ $pkgName }} via system package manager..."
+        $PKG_MANAGER "{{ $pkgName }}"
     fi
 else
     echo "✔ {{ $tool }} is already present."
