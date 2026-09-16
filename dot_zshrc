@@ -75,6 +75,9 @@ eval "$(zoxide init zsh)"
 # Initialize FZF (enables ctrl+r history search and alt+c directory jump)
 source <(fzf --zsh)
 
+# Initialize Atuin (overwrite ctrl+r history search)
+eval "$(atuin init zsh)"
+
 # Enable native uv autocompletion
 eval "$(uv generate-shell-completion zsh)"
 
