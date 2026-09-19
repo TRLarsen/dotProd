@@ -35,7 +35,7 @@ claude-code = { version = "stable", kind = "standalone" }
 # Version is set to "latest"
 # Format is "<Mise Format>" = "<Executable/binary name>"
 [user_tools]
-node = "latest"
+node = "node"
 
 "cargo:zellij" = "zellij"  # Modern Window/pane/tile/session manager
 "cargo:ripgrep" = "rg"  # Modern `grep`
