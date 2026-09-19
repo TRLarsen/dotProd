@@ -44,6 +44,7 @@ node = "latest"
 "cargo:eza" = "eza"  # Modern `ls`
 "cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
 "cargo:comrak" = "comrak"
+"cargo:zsh-patina" = "zsh-patina"
 
 # NPM Tools
 "npm:bash-language-server" = "bash-language-server"
@@ -60,6 +61,7 @@ fzf = "fzf"
 starship = "starship"
 gh = "gh"
 yazi = "ya" # Terminal file manager
+atuin = "atuin"
 
 # Pipx Tools
 # These will be installed using `uv` by default.
