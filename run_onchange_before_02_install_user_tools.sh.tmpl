@@ -1,11 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
+{{- if not (hasKey .profiles .profile) }}
+{{- fail (printf "profile %q has no entry in [profiles] in .chezmoidata.toml -- add one or fix the machine-local profile value" .profile) }}
+{{- end }}
+
 echo "Executing user-space environment validation..."
 
 # 1. INSTALL EXTERNAL (script-based, non-mise) TOOLS
+# Always user-space/sudo-free, so this tier runs on every profile; entries
+# only need a `profiles` restriction when they're excluded for resource
+# reasons (e.g. rust's toolchain size), not for sudo/gui capability reasons.
 echo "Installing external user tools..."
 {{ range $tool, $cfg := .external_user_tools }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
 SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/{{ $cfg.kind }}/{{ $tool }}.sh"
 if [[ -f "$SCRIPT_PATH" ]]; then
   echo "⚙️ Executing installer for {{ $tool }} (Version: {{ $cfg.version }})..."
@@ -14,15 +22,28 @@ else
   echo "❌ Error: script missing at $SCRIPT_PATH"
   exit 1
 fi
+{{- else }}
+echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
+{{- end }}
 {{ end }}
 
 # Source environments immediately so mise can see newly installed compilers
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
 # 2. COLLISION DETECTION HEALTH CHECK
+# Each [user_tools] value is either a plain binary-name string (available on
+# every profile) or a table `{ bin = "...", profiles = [...] }` for entries
+# that need restricting -- mirrors the flat-string-vs-table duality already
+# used in [system_tools]. Only tools available on this profile go into the
+# collision array, matching what private_dot_config/mise/config.toml.tmpl
+# will actually declare in [tools].
 MISE_TOOLS=(
-  {{- range $package, $binary := .user_tools }}
+  {{- range $package, $cfg := .user_tools }}
+  {{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
+  {{- $binary := $cfg }}
+  {{- if kindIs "map" $cfg }}{{ $binary = $cfg.bin }}{{ end }}
   "{{ $binary }}"
+  {{- end }}
   {{- end }}
 )
 

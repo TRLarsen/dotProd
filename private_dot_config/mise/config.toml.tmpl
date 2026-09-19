@@ -2,8 +2,14 @@
 # Explicitly tell mise to use uv instead of pipx for Python CLI tools
 pipx = { uvx = true }
 
-# Pulls list of tools from .chezmoidata.toml
+# Pulls list of tools from .chezmoidata.toml, filtered to this machine's
+# profile (see [profiles] in .chezmoidata.toml) -- must match the same
+# filter applied to the MISE_TOOLS collision-check array in
+# run_onchange_before_02_install_user_tools.sh.tmpl, or the two would
+# disagree about what's actually installed.
 [tools]
-{{- range $package, $binary := .user_tools }}
+{{- range $package, $cfg := .user_tools }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
 "{{ $package }}" = "latest"
+{{- end }}
 {{- end }}

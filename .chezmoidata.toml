@@ -1,6 +1,37 @@
 # Config File defining what tools will be installed how/in what order
 
 # ===============================================================
+# 0. PROFILE DEFINITIONS
+# ===============================================================
+# Declares what each install profile (see .chezmoi.toml.tmpl's `profile`
+# prompt) is capable of. Tiers that need a capability check it generically
+# here instead of hardcoding profile names in the dispatcher scripts --
+# adding a new profile, or a new capability dimension, is a pure data change
+# with no script edits. `sudo` gates the whole [system_tools] tier and native
+# [gui_apps] installs; `gui` additionally gates the [gui_apps] tier (on top
+# of the existing display-server runtime check).
+#
+# Individual entries in the tiers below can further restrict themselves to a
+# subset of profiles with a `profiles = [...]` key (see the
+# "entry-in-profile" partial in .chezmoitemplates) -- e.g. to exclude a
+# desktop-integration package from "headless" even though headless has sudo,
+# or a heavyweight toolchain from "minimal" for resource reasons even though
+# nothing about it needs sudo. Omitting `profiles` on an entry means it's
+# available on every profile the tier's capability gate allows -- keeps
+# "just add a line" true for the common case.
+[profiles.standard]
+sudo = true
+gui = true
+
+[profiles.headless]
+sudo = true
+gui = false
+
+[profiles.minimal]
+sudo = false
+gui = false
+
+# ===============================================================
 # 1. OS LAYER (Requires Sudo / Native Package Manager)
 # ===============================================================
 [system_tools]
@@ -8,7 +39,7 @@ tailscale = "latest"
 curl = "latest"
 git = "latest"
 zsh = "latest"
-flatpak = "latest"
+flatpak = { version = "latest", profiles = ["standard"] } # Only needed to back the GUI tier
 # software-properties-common = "latest" # This is Ubuntu/Debian specific, need to gate it.
 shfmt = "latest"
 clangd = "latest"
@@ -16,26 +47,38 @@ lldb = "latest"
 # Per-distro package names differ (Fedora capitalizes/hyphenates differently
 # than Debian/Ubuntu's naming scheme); each distro must have an entry or
 # `chezmoi apply` will fail loudly on that OS rather than guess a name.
-strongswan-vpn = { fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
-strongswan-vpn-gnome = { fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
-nm-connection-editor = "latest"
+# strongswan-vpn(-gnome)/nm-connection-editor are desktop-integration VPN
+# tooling -- not useful on a headless box even though headless has sudo, so
+# both are restricted to "standard" via `profiles` rather than relying on
+# the tier-level sudo gate alone.
+strongswan-vpn = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
+strongswan-vpn-gnome = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
+nm-connection-editor = { version = "latest", profiles = ["standard"] }
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
 # 2. COMPILER/RUNTIME LAYER (Custom scripts)
 # ===============================================================
 [external_user_tools]
-rust        = { version = "stable", kind = "toolchains" }
-claude-code = { version = "stable", kind = "standalone" }
+# rust and claude-code are both sudo-free curl installers, so both are
+# available on every profile's *capability* grounds; both are still
+# restricted below for resource-footprint reasons on "minimal" -- rust's
+# toolchain is ~1GB, and claude-code (~150-250MB) is bigger than the rest of
+# the "minimal" tool list combined.
+rust        = { version = "stable", kind = "toolchains", profiles = ["standard", "headless"] }
+claude-code = { version = "stable", kind = "standalone", profiles = ["standard", "headless"] }
 
 # ===============================================================
 # 3. CLI APPLICATION LAYER (Managed via Mise)
 # ===============================================================
 # Tools to be installed by `mise`
 # Version is set to "latest"
-# Format is "<Mise Format>" = "<Executable/binary name>"
+# Format is "<Mise Format>" = "<Executable/binary name>", or
+# "<Mise Format>" = { bin = "<Executable/binary name>", profiles = [...] }
+# for entries restricted off the default of "available on every profile"
+# (e.g. resource-heavy dev tooling excluded from "minimal").
 [user_tools]
-node = "latest"
+node = { bin = "latest", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
 
 "cargo:zellij" = "zellij"  # Modern Window/pane/tile/session manager
 "cargo:ripgrep" = "rg"  # Modern `grep`
@@ -43,31 +86,31 @@ node = "latest"
 "cargo:bat" = "bat"  # Modern `cat`
 "cargo:eza" = "eza"  # Modern `ls`
 "cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
-"cargo:comrak" = "comrak"
+"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] } # Used by md-preview; skipped on minimal as a niche extra
 "cargo:zsh-patina" = "zsh-patina"
 
-# NPM Tools
-"npm:bash-language-server" = "bash-language-server"
-"npm:prettier" = "prettier"
+# NPM Tools (require node, so excluded wherever node is)
+"npm:bash-language-server" = { bin = "bash-language-server", profiles = ["standard", "headless"] }
+"npm:prettier" = { bin = "prettier", profiles = ["standard", "headless"] }
 
-"uv" = "uv"
+"uv" = { bin = "uv", profiles = ["standard", "headless"] } # Only needed to back the pipx: LSPs/formatters below
 
 # GitHub Binaries (Managed automatically via asdf community plugins)
-helix = "hx"
-marksman = "marksman"
-cargo-binstall = "cargo-binstall"  # mise will automatically use cargo-binstall if installed
+helix = "hx"  # Core editor kept on every profile -- valuable precisely where there's no GUI editor; LSPs below stay standard+headless only
+marksman = { bin = "marksman", profiles = ["standard", "headless"] }
+cargo-binstall = "cargo-binstall"  # mise will automatically use cargo-binstall if installed; needed by every cargo: entry above, incl. on minimal
 zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
 gh = "gh"
-yazi = "ya" # Terminal file manager
+yazi = { bin = "ya", profiles = ["standard", "headless"] } # Terminal file manager; image-preview deps add weight, skip on minimal
 atuin = "atuin"
 
-# Pipx Tools
+# Pipx Tools (Python dev tooling; excluded from minimal along with uv above)
 # These will be installed using `uv` by default.
-"pipx:ruff" = "ruff"
-"pipx:basedpyright" = "basedpyright"
-"pipx:tombi" = "tombi"  # For TOML formatting
+"pipx:ruff" = { bin = "ruff", profiles = ["standard", "headless"] }
+"pipx:basedpyright" = { bin = "basedpyright", profiles = ["standard", "headless"] }
+"pipx:tombi" = { bin = "tombi", profiles = ["standard", "headless"] }  # For TOML formatting
 
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)

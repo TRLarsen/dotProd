@@ -84,11 +84,57 @@ opt-in personalization tier layered on top:
    documented, intended way to differentiate machines. Add a new machine
    class the same way: extend `.chezmoi.toml.tmpl`'s `[data]` table with
    another `promptBoolOnce`, then reference it via `requires` — no dispatcher
-   changes needed, it's already generic over the key name.
+   changes needed, it's already generic over the key name. `laptop`/`requires`
+   and the install-`profile` mechanism below are both instances of this same
+   machine-local-data pattern, kept orthogonal on purpose (a shared/borrowed
+   laptop can still be install-profile `minimal`) — see "Install profiles"
+   below.
 
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
 adapter to `~/.local/bin/lldb-dap` for Helix).
+
+### Install profiles
+
+Every machine also answers a **`profile`** — `standard` (owned desktop, full
+GUI, no constraints), `headless` (owned server, no display, sudo available,
+full dev toolchain), or `minimal` (resource-constrained and/or shared with
+others — university lab, coworker's machine — must work with **no sudo**).
+Like `laptop`, `profile` is machine-local data from `.chezmoi.toml.tmpl`
+(`promptChoiceOnce`, not `promptBoolOnce` — it validates the answer against
+the three-item choice list instead of accepting anything, so a typo can't
+silently produce an unrecognized profile). Unlike `requires = "laptop"`
+(which only gates the opt-in `[personal]` layer), `profile` gates the four
+install tiers themselves:
+
+- `.chezmoidata.toml` has a `[profiles]` table declaring what each profile
+  can do — `sudo` (gates the whole `[system_tools]` tier and native
+  `[gui_apps]` installs) and `gui` (additionally gates `[gui_apps]`, on top
+  of the existing display-server runtime check). This is a capability table,
+  not a hardcoded name check, specifically so that adding a fourth profile
+  later — or a new capability dimension — is a pure data change; none of the
+  four dispatcher scripts need editing.
+- Individual entries in any tier can further restrict themselves with a
+  `profiles = [...]` key (e.g. `rust = { version = "stable", kind =
+  "toolchains", profiles = ["standard", "headless"] }`) for cases the
+  capability gate doesn't cover — a desktop-integration package excluded
+  from `headless` even though headless has sudo, or a heavyweight toolchain
+  excluded from `minimal` for footprint reasons even though nothing about it
+  needs sudo. Omitting `profiles` means "available on every profile the
+  tier's capability gate allows" — this keeps "just add a line" true for the
+  common case; only entries that actually need restricting get annotated.
+  `[user_tools]` values follow the same flat-string-vs-table duality already
+  used for `[system_tools]`'s per-distro entries: a plain string is a binary
+  name (all profiles), a table is `{ bin = "...", profiles = [...] }`.
+- The `profiles = [...]` check itself lives in one place —
+  `.chezmoitemplates/entry-in-profile`, included via `{{ includeTemplate
+  "entry-in-profile" (dict "entry" $value "profile" $.profile) }}` — and is
+  applied identically in all four tier loops (plus
+  `private_dot_config/mise/config.toml.tmpl`, which must filter `[tools]`
+  the same way the `[user_tools]` collision check does, or `mise install -y`
+  would install things the collision check correctly skipped). If a
+  machine's stored `profile` doesn't match a key in `[profiles]`, each
+  dispatcher fails loudly at render time rather than guessing.
 
 ### Execution order
 
@@ -97,8 +143,10 @@ Chezmoi runs scripts in lexical order of their `run_*` prefix
 `after_90`), so system packages exist before toolchains, toolchains before
 mise, mise before GUI apps, and everything before the personalization and
 final integrations passes. `onchange` scripts are hashed by chezmoi and only
-re-run when their content (or, for the mise script, the `Hash: {{
-.user_tools | toJson | sha256sum }}` comment) changes —
+re-run when their content (or, for the mise script, the `Hash: {{ printf
+"%s|%s" (.user_tools | toJson) .profile | sha256sum }}` comment, which also
+covers `.profile` so switching a machine's profile re-triggers the collision
+check even when `.user_tools` itself hasn't changed) changes —
 `run_after_20_configure_personal.sh.tmpl` and the per-app scripts it
 dispatches to are plain `run_after_` (not `run_onchange_after_`) and so
 always re-run, relying on their own idempotency/gating instead.
@@ -118,7 +166,9 @@ the whole pipeline** rather than silently shadowing it. When adding a tool to
 
 **Standard package** (apt/dnf/pacman package with no special install logic,
 or a plain mise-installable binary): just add a line to the appropriate
-section of `.chezmoidata.toml`. No script needed.
+section of `.chezmoidata.toml`. No script needed. It's available on every
+install profile by default; add a `profiles = [...]` key only if it should
+be restricted (see [Install profiles](#install-profiles)).
 
 **Complex package** (custom repo/PPA, `curl | sh` install, pre-install
 cleanup): add the entry to `.chezmoidata.toml`, then create a script named
