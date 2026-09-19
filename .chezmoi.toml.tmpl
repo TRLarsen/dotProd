@@ -13,5 +13,15 @@
 # dir) to change it later.
 {{- $batteryPresent := gt (len (glob "/sys/class/power_supply/BAT*")) 0 -}}
 {{- $laptop := promptBoolOnce . "laptop" "Is this a laptop" $batteryPresent }}
+
+# `profile` picks which install profile this machine uses -- see the
+# [profiles] capability table in .chezmoidata.toml and the "entry-in-profile"
+# partial in .chezmoitemplates for how it's applied. Orthogonal to `laptop`
+# (a shared/borrowed laptop can still be "minimal"). promptChoiceOnce (not
+# promptStringOnce) validates the answer against the choices list, so a typo
+# can't silently produce an unrecognized profile. Answered once per machine;
+# re-run `chezmoi init` to change it later.
+{{- $profile := promptChoiceOnce . "profile" "Which install profile is this machine (standard/headless/minimal)" (list "standard" "headless" "minimal") "standard" }}
 [data]
-    laptop = {{ $laptop }}
+    laptop  = {{ $laptop }}
+    profile = {{ $profile | quote }}

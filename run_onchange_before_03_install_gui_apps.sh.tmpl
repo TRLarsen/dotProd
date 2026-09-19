@@ -1,7 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 
-# Safely exit if no display server is running (e.g., SSH session, CI container)
+{{- if not (hasKey .profiles .profile) }}
+{{- fail (printf "profile %q has no entry in [profiles] in .chezmoidata.toml -- add one or fix the machine-local profile value" .profile) }}
+{{- end }}
+
+{{ if not (index .profiles .profile "gui") }}
+echo "⏭️  Skipping gui_apps tier entirely: profile {{ .profile | quote }} has no gui capability."
+exit 0
+{{ end }}
+
+# Safely exit if no display server is running (e.g., SSH session, CI container).
+# A "standard"/gui-capable profile can still be applying over a session with
+# no display active (e.g. via SSH), so this check is additive to, not a
+# substitute for, the profile capability check above.
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ -z "${DISPLAY:-}" ]; then
     echo "No display server detected. Skipping GUI application bootstrap."
     exit 0
@@ -42,6 +54,9 @@ if command -v flatpak &> /dev/null; then
 fi
 
 {{ range $app, $app_identifier := .gui_apps }}
+{{- if ne (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
+echo "⏭️  Skipping {{ $app }} (not in profile {{ $.profile | quote }})."
+{{- else }}
 {{- $is_native := false }}
 {{- if kindIs "map" $app_identifier }}
 {{-   if not (hasKey $app_identifier "native") }}
@@ -106,4 +121,5 @@ else
     echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
 fi
 {{ end }}
+{{- end }}
 {{ end }}

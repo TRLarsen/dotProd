@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+{{- if not (hasKey .profiles .profile) }}
+{{- fail (printf "profile %q has no entry in [profiles] in .chezmoidata.toml -- add one or fix the machine-local profile value" .profile) }}
+{{- end }}
+
+{{ if not (index .profiles .profile "sudo") }}
+echo "⏭️  Skipping system_tools tier entirely: profile {{ .profile | quote }} has no sudo."
+exit 0
+{{ else }}
 echo "Processing system-level dependencies..."
 
 # Determine the native package manager based on OS
@@ -19,15 +27,20 @@ echo "Processing system-level dependencies..."
 
 # Loop through all uncommented system tools
 {{ range $tool, $version := .system_tools }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $version "profile" $.profile)) "true" }}
 {{- $pkgName := $tool }}
 {{- $pkgVersion := $version }}
 {{- if kindIs "map" $version }}
+{{- if hasKey $version "version" }}
+{{- $pkgVersion = $version.version }}
+{{- else }}
 {{- if not (hasKey $version $.chezmoi.osRelease.id) }}
 {{- fail (printf "system_tools[%q] has no entry for OS %q — add one or the install will silently guess wrong" $tool $.chezmoi.osRelease.id) }}
 {{- end }}
 {{- $osEntry := index $version $.chezmoi.osRelease.id }}
 {{- $pkgName = $osEntry.name }}
 {{- $pkgVersion = $osEntry.version }}
+{{- end }}
 {{- end }}
 if ! command -v {{ $tool }} &> /dev/null; then
     SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/daemons/{{ $tool }}.sh"
@@ -43,4 +56,8 @@ if ! command -v {{ $tool }} &> /dev/null; then
 else
     echo "✔ {{ $tool }} is already present."
 fi
+{{- else }}
+echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
+{{- end }}
+{{ end }}
 {{ end }}

@@ -56,6 +56,20 @@ plus one opt-in personalization layer applied after everything else installs.
      being installed, so these settings are a safe no-op on machines that
      don't have that app.
 
+## 🎚️ Install Profiles
+
+Every machine also picks an install **profile** at `chezmoi init` time:
+`standard` (owned desktop, full GUI, no constraints), `headless` (owned
+server, no display, sudo available, full dev toolchain), or `minimal`
+(resource-constrained and/or shared with others — must work with **no
+sudo**). A `[profiles]` capability table in `.chezmoidata.toml` declares what
+each profile can do (`sudo`, `gui`), and the System/GUI layers above check it
+generically — adding a fourth profile later is a pure data change, no
+dispatcher edits. Individual tool entries in any layer can further restrict
+themselves to a subset of profiles with a `profiles = [...]` key; omitting it
+means "available everywhere the layer's capability allows," so adding a
+standard tool stays a one-line change.
+
 ## ⚙️ The Execution Pipeline
 
 Chezmoi executes the bootstrapping pipeline in a strict numerical sequence,
@@ -114,7 +128,9 @@ ghostty = "custom_script"  # value unused; installed via .scripts/gui/ghostty.sh
 
 If a tool just needs a standard `apt install` or a `mise` binary pull, simply
 add it to the appropriate section in `.chezmoidata.toml`. The dispatcher will
-handle it automatically.
+handle it automatically, and it's available on every install profile by
+default — add a `profiles = [...]` key only if it should be restricted (see
+[Install Profiles](#-install-profiles)).
 
 ### 2. Adding a Complex Package
 
