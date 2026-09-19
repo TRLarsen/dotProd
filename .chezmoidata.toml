@@ -45,6 +45,7 @@ node = "latest"
 "cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
 "cargo:comrak" = "comrak"
 "cargo:zsh-patina" = "zsh-patina"
+"cargo:typst-cli" = "typst"
 
 # NPM Tools
 "npm:bash-language-server" = "bash-language-server"
