@@ -1,0 +1,17 @@
+# Machine-local chezmoi config, generated once by `chezmoi init` into
+# ~/.config/chezmoi/chezmoi.toml -- NOT committed to git, so this is where
+# genuinely per-machine (not per-repo) data belongs. See [personal] entries
+# in .chezmoidata.toml with a `requires` key, and the dispatcher logic in
+# run_after_20_configure_personal.sh.tmpl, for how this data gates
+# machine-class-specific settings.
+#
+# `laptop` is auto-detected from the presence of a battery
+# (/sys/class/power_supply/BAT*) and offered as the promptBoolOnce default,
+# but you're asked to confirm/override at init time in case that heuristic
+# is wrong (e.g. a desktop with a UPS reporting as a battery). Answered once
+# per machine; re-run `chezmoi init` (no args, from an already-cloned source
+# dir) to change it later.
+{{- $batteryPresent := gt (len (glob "/sys/class/power_supply/BAT*")) 0 -}}
+{{- $laptop := promptBoolOnce . "laptop" "Is this a laptop" $batteryPresent }}
+[data]
+    laptop = {{ $laptop }}

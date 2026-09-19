@@ -17,9 +17,20 @@ set -euo pipefail
 # means the script below is never invoked, even if the script itself
 # doesn't check for that flag. This keeps the enable/disable switch
 # centralized instead of relying on every per-app script to reimplement it.
+#
+# A table may also set `requires = "<machine-class>"` (e.g. "laptop") to
+# scope itself to a class of machine, checked against the matching
+# machine-local data key (see .chezmoi.toml.tmpl -- `requires = "laptop"`
+# checks `.laptop`). This is what lets machine-specific settings (e.g.
+# battery charge thresholds) stay declared on every machine's shared
+# .chezmoidata.toml and just safely no-op where they don't apply, instead
+# of needing a separate git branch per machine class.
 
 {{ range $app, $settings := .personal }}
 {{- if and (kindIs "map" $settings) (index $settings "active") }}
+{{- $requires := "" }}
+{{- if hasKey $settings "requires" }}{{ $requires = index $settings "requires" }}{{ end }}
+{{- if or (eq $requires "") (index $ $requires) }}
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/personal/{{ $app }}/configure.sh.tmpl"
 if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🔧 Applying personal configuration for {{ $app }}..."
@@ -27,5 +38,8 @@ if [[ -f "$SCRIPT_PATH" ]]; then
 else
     echo "⚠️  [personal.{{ $app }}] is active but no script found at .scripts/personal/{{ $app }}/configure.sh.tmpl" >&2
 fi
+{{- else }}
+echo "⏭️  Skipping {{ $app }} (requires = {{ $requires }}, not true on this machine)."
+{{- end }}
 {{ end -}}
 {{ end -}}

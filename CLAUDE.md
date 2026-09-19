@@ -68,6 +68,24 @@ opt-in personalization tier layered on top:
    `.scripts/personal/firefox/configure.sh.tmpl` for the reference
    implementation of this pattern.
 
+   A `[personal.<app>]` table may also set `requires = "<machine-class>"`
+   (e.g. `requires = "laptop"`, see `[personal.battery_charge_threshold]`)
+   to scope itself to a class of machine. This checks a **machine-local**
+   data key of the same name (`.laptop`), sourced from `.chezmoi.toml.tmpl`
+   — chezmoi's own mechanism for per-machine data that's deliberately *not*
+   committed to git (it lives in `~/.config/chezmoi/chezmoi.toml`, answered
+   once via `promptBoolOnce` at `chezmoi init`, auto-detected where
+   possible). This is what lets a genuinely machine-specific setting stay
+   declared with `active = true` on every machine's shared
+   `.chezmoidata.toml` and just safely no-op where it doesn't apply, instead
+   of forking a separate git branch per machine class (which was the old
+   pattern — don't do that anymore for this kind of difference). Chezmoi has
+   no built-in "profiles" feature; this data+template approach is the
+   documented, intended way to differentiate machines. Add a new machine
+   class the same way: extend `.chezmoi.toml.tmpl`'s `[data]` table with
+   another `promptBoolOnce`, then reference it via `requires` — no dispatcher
+   changes needed, it's already generic over the key name.
+
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
 adapter to `~/.local/bin/lldb-dap` for Helix).
