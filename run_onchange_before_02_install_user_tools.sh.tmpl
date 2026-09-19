@@ -66,5 +66,11 @@ fi
 # 3. MISE RUNTIME ENGINE
 if ! command -v mise &>/dev/null; then
   echo "Bootstrapping mise execution engine..."
-  curl https://mise.run | sh
+  # Force the statically-linked musl build rather than mise's default glibc
+  # build: mise.run's installer only distinguishes musl vs glibc (via `ldd`)
+  # and has no glibc *version* fallback, so on older distros (RHEL/CentOS
+  # 7-class glibc 2.17, etc.) the glibc build can fail with a
+  # GLIBC_x.yy not found error. The musl build has no glibc dependency and
+  # runs everywhere, so use it unconditionally rather than special-casing it.
+  curl https://mise.run | MISE_INSTALL_MUSL=1 sh
 fi
