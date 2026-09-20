@@ -6,10 +6,14 @@ pipx = { uvx = true }
 # profile (see [profiles] in .chezmoidata.toml) -- must match the same
 # filter applied to the MISE_TOOLS collision-check array in
 # run_onchange_before_02_install_user_tools.sh.tmpl, or the two would
-# disagree about what's actually installed.
+# disagree about what's actually installed. Defaults to "latest" unless an
+# entry sets an explicit `version` key (same optional-field pattern used by
+# [system_tools]/[external_user_tools]).
 [tools]
 {{- range $package, $cfg := .user_tools }}
 {{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
-"{{ $package }}" = "latest"
+{{- $version := "latest" }}
+{{- if and (kindIs "map" $cfg) (hasKey $cfg "version") }}{{ $version = $cfg.version }}{{ end }}
+"{{ $package }}" = "{{ $version }}"
 {{- end }}
 {{- end }}

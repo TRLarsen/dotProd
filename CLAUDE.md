@@ -33,9 +33,15 @@ opt-in personalization tier layered on top:
    **collision-detection health check** (see below) and bootstraps `mise`
    itself.
 3. **`[user_tools]`** — CLI apps installed concurrently via `mise` (cargo, npm,
-   pipx, uv, and GitHub-release backends). The key is the mise package
-   spec (e.g. `"cargo:ripgrep"`, `"pipx:ruff"`), the value is the resulting
-   binary name, used only for the collision check. Actually installed by
+   pipx, uv, aqua, github, and other GitHub-release-style backends). The key
+   is the mise package spec (e.g. `"ripgrep"`, `"pipx:ruff"`), the value is
+   either a plain binary-name string (used for the collision check, version
+   defaults to `"latest"`) or a table `{ bin = "...", profiles = [...],
+   version = "..." }` for entries that need restricting to a subset of
+   profiles and/or pinning to an explicit version — same optional-field
+   pattern `[system_tools]`/`[external_user_tools]` already use. Pinning is
+   the exception: it opts a tool out of `czup`'s rolling-latest upgrades.
+   Actually installed by
    `run_onchange_after_10_install_mise_tools.sh.tmpl` (`mise install -y`),
    after `private_dot_config/mise/config.toml.tmpl` has rendered the `[tools]`
    table from this same data.
