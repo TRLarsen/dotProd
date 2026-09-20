@@ -131,7 +131,7 @@ ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh
 brave = "com.brave.Browser"
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
-firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's headless guard. See .scripts/personal/firefox/configure.sh.tmpl for opt-in prefs/extensions sync.
+zen = "app.zen_browser.zen"  # Flatpak (official Flathub build). See .scripts/personal/zen/configure.sh.tmpl for opt-in prefs/extensions sync.
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)
@@ -139,18 +139,20 @@ firefox = { native = true }  # Native package (apt/dnf/pacman); gated by 03's he
 # Opinionated, user-specific customizations that not everyone forking this
 # repo will want. Nothing here is required by the core dispatcher scripts;
 # comment out a line to skip that customization on a given machine.
-[personal.firefox]
-active = true  # Opts into this app's personal customization (Betterfox prefs + enterprise-policy extensions below). Enforced centrally by run_after_20_configure_personal.sh.tmpl -- the per-app script isn't even invoked when this is false.
+[personal.zen]
+active = true  # Opts into this app's personal customization (local prefs + enterprise-policy extensions below). Enforced centrally by run_after_20_configure_personal.sh.tmpl -- the per-app script isn't even invoked when this is false.
+profiles = ["standard"]  # GUI browser -- only meaningful where the gui_apps tier actually installs it (today, only "standard" has the gui capability).
 
-# Extensions to force-install via Firefox's enterprise policy engine (can't be
-# disabled/removed by accident; installed with no user prompt). Key = the
-# extension's ID (from about:debugging or its manifest), value = its AMO
-# ("addons.mozilla.org") URL slug. Add/remove/comment a line to change what
-# gets installed.
-[personal.firefox.extensions]
+# Extensions to force-install via Zen's (inherited-from-Firefox) enterprise
+# policy engine (can't be disabled/removed by accident; installed with no
+# user prompt). Key = the extension's ID (from about:debugging or its
+# manifest), value = its AMO ("addons.mozilla.org") URL slug. Add/remove/
+# comment a line to change what gets installed.
+[personal.zen.extensions]
 "uBlock0@raymondhill.net" = "ublock-origin"
 "{446900e4-71c2-419f-a6a7-df9c091e268b}" = "bitwarden-password-manager"
 "floccus@handmadeideas.org" = "floccus"
+"tridactyl.vim@cmcaine.co.uk" = "tridactyl-vim"
 
 # Enforces a battery charge-limit on laptops using the `dell_laptop` kernel
 # driver (Dell Latitude/Inspiron/Precision/XPS). That driver only respects

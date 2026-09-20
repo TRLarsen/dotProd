@@ -41,14 +41,15 @@ opt-in personalization tier layered on top:
    table from this same data.
 4. **`[gui_apps]`** — desktop apps, installed via Flatpak by default, or a
    custom script if one exists, or natively via `apt`/`dnf`/`pacman` if the
-   entry is a table with `native = true` (e.g. `firefox = { native = true }`).
+   entry is a table with `native = true` (for a package unavailable as a
+   Flatpak).
    Installed by `run_onchange_before_03_install_gui_apps.sh.tmpl`, gated on a
    display server (`$WAYLAND_DISPLAY`/`$DISPLAY`) being present — this gate
    applies to native entries too, so an app marked `native = true` is still
    skipped entirely on headless machines/SSH sessions.
 5. **`[personal]`** — opinionated, per-machine opt-in settings, namespaced
-   per app (e.g. `[personal.firefox]` with an `active` key and a nested
-   `[personal.firefox.extensions]` table). Not part of the install
+   per app (e.g. `[personal.zen]` with an `active` key and a nested
+   `[personal.zen.extensions]` table). Not part of the install
    dispatcher above; applied by the generic
    `run_after_20_configure_personal.sh.tmpl` dispatcher, which reruns on
    *every* `chezmoi apply` (deliberately `run_after_`, not
@@ -65,7 +66,7 @@ opt-in personalization tier layered on top:
    app itself isn't installed (headless, commented out of
    `[gui_apps]`/`[system_tools]`, etc.), rather than erroring or writing
    config for software that isn't there. See
-   `.scripts/personal/firefox/configure.sh.tmpl` for the reference
+   `.scripts/personal/zen/configure.sh.tmpl` for the reference
    implementation of this pattern.
 
    A `[personal.<app>]` table may also set `requires = "<machine-class>"`
@@ -89,6 +90,16 @@ opt-in personalization tier layered on top:
    machine-local-data pattern, kept orthogonal on purpose (a shared/borrowed
    laptop can still be install-profile `minimal`) — see "Install profiles"
    below.
+
+   A `[personal.<app>]` table may also set `profiles = [...]` (e.g.
+   `profiles = ["standard"]`, see `[personal.zen]`) to restrict itself to a
+   subset of install profiles, checked in `run_after_20_configure_personal.sh.tmpl`
+   via the same shared `entry-in-profile` partial the four install-tier
+   dispatchers use (see "Install profiles" below). This is for settings tied
+   to a GUI app that should be a declared no-op on `headless`/`minimal`
+   rather than an implicit side effect of the app never being installed
+   there. Omitting `profiles` means "every profile", same default as
+   everywhere else that partial is used.
 
 `run_after_90_integrations.sh` runs last and handles cross-tool glue that
 doesn't fit the tiered model (currently: symlinking the system LLDB debug
@@ -199,15 +210,17 @@ the GUI dispatcher, but with no `$1` — per-app scripts read their own
 settings straight out of `.personal.<app>` via `{{ index .personal "<app>"
 ... }}`). Because the dispatcher already filters on `active`, the per-app
 script doesn't need to (and shouldn't bother) re-checking it — sub-features
-within a script (like Firefox's `extensions` table) can still have their own
+within a script (like Zen's `extensions` table) can still have their own
 finer-grained checks. As its first real statement the script must instead
 gate on the target app actually being present (`command -v <app>` or
-equivalent), then `exit 0` if it's not — that's what makes `[personal]`
-entries safe to leave declared even on machines that don't install that app
-(headless boxes, or the app commented out of `[gui_apps]`/`[system_tools]`).
-Follow `.scripts/personal/firefox/configure.sh.tmpl` as the reference
-implementation — co-locate any non-script assets it needs (e.g. its
-`user-overrides.js`) in the same `.scripts/personal/<app>/` directory.
+equivalent — `flatpak info <app-id>` for a Flatpak-installed app, since a
+Flatpak may not export a plain binary name onto `$PATH`), then `exit 0` if
+it's not — that's what makes `[personal]` entries safe to leave declared
+even on machines that don't install that app (headless boxes, or the app
+commented out of `[gui_apps]`/`[system_tools]`). Follow
+`.scripts/personal/zen/configure.sh.tmpl` as the reference implementation —
+co-locate any non-script assets it needs (e.g. its `user.js`) in the same
+`.scripts/personal/<app>/` directory.
 
 ## Chezmoi file-naming conventions in this repo
 
