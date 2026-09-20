@@ -71,12 +71,17 @@ claude-code = { version = "stable", kind = "standalone", profiles = ["standard",
 # ===============================================================
 # 3. CLI APPLICATION LAYER (Managed via Mise)
 # ===============================================================
-# Tools to be installed by `mise`
-# Version is set to "latest"
-# Format is "<Mise Format>" = "<Executable/binary name>", or
-# "<Mise Format>" = { bin = "<Executable/binary name>", profiles = [...] }
-# for entries restricted off the default of "available on every profile"
-# (e.g. resource-heavy dev tooling excluded from "minimal").
+# Tools to be installed by `mise`. Format is "<Mise Format>" =
+# "<Executable/binary name>", or "<Mise Format>" = { bin = "<Executable/
+# binary name>", profiles = [...], version = "..." } for entries that need
+# `profiles` (restrict off the default of "available on every profile", e.g.
+# resource-heavy dev tooling excluded from "minimal") and/or an explicit
+# `version` (defaults to "latest" when omitted -- same optional-field
+# pattern [system_tools]/[external_user_tools] already use, e.g. `rust =
+# { version = "stable", ... }`). Pinning is the exception, not the norm: it
+# opts a tool out of `czup`'s rolling-latest upgrades, so only set it when a
+# specific version genuinely matters (a regression, a breaking change you're
+# not ready for), not as a general habit.
 [user_tools]
 node = { bin = "node", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
 
