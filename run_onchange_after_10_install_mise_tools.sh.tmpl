@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-# This comment hashes the user_tools dictionary from your .chezmoidata.toml.
-# By including it here, Chezmoi will automatically re-run this script 
-# ONLY when you add or remove a tool in your TOML!
-# Hash: {{ .user_tools | toJson | sha256sum }}
+# This comment hashes the user_tools dictionary from your .chezmoidata.toml,
+# plus the machine's install profile. By including it here, Chezmoi will
+# automatically re-run this script ONLY when you add/remove a tool in your
+# TOML, or when you switch this machine's profile (which changes which
+# tools config.toml.tmpl actually declares, even though .user_tools itself
+# didn't change).
+# Hash: {{ printf "%s|%s" (.user_tools | toJson) .profile | sha256sum }}
 
 if command -v "$HOME/.local/bin/mise" &> /dev/null; then
     echo "Deploying user-space applications via Mise..."

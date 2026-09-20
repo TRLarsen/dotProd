@@ -1,0 +1,23 @@
+{{- /*
+Reusable boolean check: is the current machine's profile allowed to install
+a given .chezmoidata.toml entry? Used identically across every tier
+(system_tools, external_user_tools, user_tools, gui_apps) via:
+
+    {{- if eq (includeTemplate "entry-in-profile" (dict "entry" $version "profile" $.profile)) "true" }}
+    ... install logic ...
+    {{- end }}
+
+`entry` is the raw TOML value for one tool (a plain string, or a table that
+may carry a `profiles = [...]` allow-list alongside whatever other fields
+that tier's entries use -- version strings, per-distro OS maps, etc.).
+Omitting `profiles` means the entry is available on every profile; this
+keeps "just add a line" true for the common case and only requires
+annotation for the entries that actually need restricting.
+*/ -}}
+{{- $entry := .entry -}}
+{{- $profile := .profile -}}
+{{- $allowed := list "standard" "headless" "minimal" -}}
+{{- if and (kindIs "map" $entry) (hasKey $entry "profiles") -}}
+{{- $allowed = $entry.profiles -}}
+{{- end -}}
+{{- has $profile $allowed -}}
