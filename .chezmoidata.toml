@@ -80,14 +80,25 @@ claude-code = { version = "stable", kind = "standalone", profiles = ["standard",
 [user_tools]
 node = { bin = "latest", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
 
-"cargo:zellij" = "zellij"  # Modern Window/pane/tile/session manager
-"cargo:ripgrep" = "rg"  # Modern `grep`
+# Bare names below resolve through mise's own registry, which prefers a
+# prebuilt-binary backend (aqua, confirmed via `mise install -v`) over
+# cargo: when one exists -- same upstream release binary cargo-binstall
+# would fetch anyway on standard/headless, but with no dependency on a
+# `cargo` binary being present, which is what makes these installable on
+# "minimal" (no rust toolchain at all) without any compile fallback.
+zellij = "zellij"  # Modern Window/pane/tile/session manager
+ripgrep = "rg"  # Modern `grep`
 # "cargo:fd-find" = "fd"  # Modern `find` # Comes pre-installed on Fedora COSMIC Spin, need to gate/check
-"cargo:bat" = "bat"  # Modern `cat`
-"cargo:eza" = "eza"  # Modern `ls`
-"cargo:sheldon" = "sheldon"  # Zsh Plugin Manager
-"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] } # Used by md-preview; skipped on minimal as a niche extra
-"cargo:zsh-patina" = "zsh-patina"
+bat = "bat"  # Modern `cat`
+eza = "eza"  # Modern `ls`
+sheldon = "sheldon"  # Zsh Plugin Manager
+"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] } # No aqua backend for this one; stays cargo: (fine, excluded from minimal anyway)
+# zsh-patina has no mise registry entry at all (bare name wouldn't resolve),
+# but it does publish prebuilt GitHub release binaries -- the `github:`
+# backend fetches those directly, same no-cargo-needed rationale as above.
+# (mise's older `ubi:` backend does the same thing but is deprecated as of
+# this mise version, scheduled for removal in 2027.1.0 -- use `github:`.)
+"github:michel-kraemer/zsh-patina" = "zsh-patina"
 
 # NPM Tools (require node, so excluded wherever node is)
 "npm:bash-language-server" = { bin = "bash-language-server", profiles = ["standard", "headless"] }
