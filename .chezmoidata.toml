@@ -78,7 +78,7 @@ claude-code = { version = "stable", kind = "standalone", profiles = ["standard",
 # for entries restricted off the default of "available on every profile"
 # (e.g. resource-heavy dev tooling excluded from "minimal").
 [user_tools]
-node = { bin = "latest", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
+node = { bin = "node", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
 
 # Bare names below resolve through mise's own registry, which prefers a
 # prebuilt-binary backend (aqua, confirmed via `mise install -v`) over
