@@ -44,9 +44,9 @@ plus one opt-in personalization layer applied after everything else installs.
    prevent "Double Icon Syndrome" and OS-level package conflicts, with fallbacks
    for custom install scripts (e.g., Ghostty's official installer) and an
    explicit opt-in to native (`apt`/`dnf`/`pacman`) installs via `{ native = true }`
-   (e.g., Firefox).
+   for packages unavailable as a Flatpak.
 5. **Personal Layer (`[personal]`):** \* Opt-in, per-machine settings,
-   namespaced per app (e.g. `[personal.firefox]` for preferences/extensions).
+   namespaced per app (e.g. `[personal.zen]` for preferences/extensions).
    - Applied by a single generic `run_after_20_configure_personal.sh.tmpl`
      dispatcher that reruns on every apply. Each app opts in with
      `active = true`; the dispatcher checks that flag itself and only runs
@@ -89,10 +89,10 @@ are all prefixed by `run_[onchange_before/after]` and suffixed by `.sh[.tmpl]`.
   `{ native = true }` entries).
 - **`20_configure_personal`**: (Run-After Phase) Generic dispatcher for the
   `[personal]` layer — discovers and runs every
-  `.scripts/personal/<app>/configure.sh.tmpl` on disk (e.g. Firefox's
-  Betterfox prefs + enterprise-policy extensions), each gated on its target
-  app actually being installed. Reruns every apply, unlike the
-  `run_onchange_` install scripts above.
+  `.scripts/personal/<app>/configure.sh.tmpl` on disk (e.g. Zen's local
+  prefs + enterprise-policy extensions), each gated on its target app
+  actually being installed. Reruns every apply, unlike the `run_onchange_`
+  install scripts above.
 - **`90_integrations`**: (Run-After Phase) Executes glue logic, such as
   symlinking system-installed debuggers (LLDB) into the user paths expected by
   terminal editors. This script is currently not standardized and must be
@@ -118,7 +118,7 @@ helix = "hx"
 gh = "gh"
 
 [gui_apps]
-firefox = { native = true }  # installed via apt/dnf/pacman, package name = "firefox"
+zen = "app.zen_browser.zen"  # flatpak app ID, installed via Flathub
 ghostty = "custom_script"  # value unused; installed via .scripts/gui/ghostty.sh.tmpl
 ```
 
@@ -149,7 +149,7 @@ TOML value to it as `$1`.
 
 ### 3. Adding a Personal, App-Linked Setting
 
-Opt-in per-machine customizations (e.g. Firefox prefs) live under
+Opt-in per-machine customizations (e.g. Zen prefs) live under
 `[personal.<app>]` in `.chezmoidata.toml`, gated by an `active = true` key,
 and are applied by their own script at
 `~/.local/share/chezmoi/.scripts/personal/<app>/configure.sh.tmpl`. Unlike
@@ -158,11 +158,12 @@ dispatcher — it loops over every `[personal.<app>]` table, and for each one
 where `active` is `true` it runs that app's `configure.sh.tmpl`, so adding a
 new app needs no changes to the dispatcher itself. The `active` check lives
 in the dispatcher, not the script, so setting it to `false` reliably turns
-an app's customization off. Each script reads its own settings straight out
-of `.personal.<app>` and must still gate on the target app actually being
-installed before doing anything else. See
-`.scripts/personal/firefox/configure.sh.tmpl` for the reference
-implementation.
+an app's customization off. A table can also set `profiles = [...]` (see
+[Install Profiles](#-install-profiles)) to restrict itself to a subset of
+install profiles — useful for settings tied to a GUI app. Each script reads
+its own settings straight out of `.personal.<app>` and must still gate on
+the target app actually being installed before doing anything else. See
+`.scripts/personal/zen/configure.sh.tmpl` for the reference implementation.
 
 ## 💻 Installation
 
