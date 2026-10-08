@@ -122,6 +122,15 @@ gh = "gh"
 yazi = { bin = "ya", profiles = ["standard", "headless"] } # Terminal file manager; image-preview deps add weight, skip on minimal
 atuin = "atuin"
 
+# AI coding-agent CLIs. Both resolve to aqua (prebuilt release binaries), so
+# no node/npm needed. Excluded from minimal for the same footprint reason as
+# claude-code in [external_user_tools]: codex unpacks to ~430MB, antigravity
+# to ~200MB. antigravity-cli ships `antigravity` plus an `agy` symlink;
+# `agy` is the name Google's own curl installer drops into ~/.local/bin, so
+# checking it lets the collision guard catch a leftover non-mise copy.
+codex = { bin = "codex", profiles = ["standard", "headless"] }
+antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
+
 # Pipx Tools (Python dev tooling; excluded from minimal along with uv above)
 # These will be installed using `uv` by default.
 "pipx:ruff" = { bin = "ruff", profiles = ["standard", "headless"] }
