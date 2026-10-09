@@ -75,7 +75,8 @@ eval "$(zoxide init zsh)"
 # Initialize FZF (enables ctrl+r history search and alt+c directory jump)
 source <(fzf --zsh)
 
-# Initialize Atuin (overwrite ctrl+r history search)
+# Initialize Atuin (overwrite ctrl+r history search; also binds UP and Vi
+# Normal Mode `k` to atuin-up-search -- do not rebind those keys below)
 eval "$(atuin init zsh)"
 
 # Enable native uv autocompletion
@@ -87,16 +88,12 @@ eval "$(starship init zsh)"
 # Load Sheldon plugins
 eval "$(sheldon source)"
 
-# Load zsh-patina syntax highlighting
-eval "$( $(mise which zsh-patina) activate)"
-
-# Bind UP and DOWN arrow keys to history substring search
-bindkey "$terminfo[kcuu1]" history-substring-search-up
-bindkey "$terminfo[kcud1]" history-substring-search-down
-
-# Bind k and j to history search in Vi Normal Mode
-bindkey -M vicmd 'k' history-substring-search-up
-bindkey -M vicmd 'j' history-substring-search-down
+# Load zsh-patina syntax highlighting (resolved via the PATH `mise activate`
+# set up above, not `mise which` -- the latter errors whenever "latest" has
+# moved past the installed version, i.e. until the next `czup`)
+if (( $+commands[zsh-patina] )); then
+  eval "$(zsh-patina activate)"
+fi
 
 # Bind Ctrl+Y to accept command suggestions
 bindkey -M viins '^Y' autosuggest-accept
