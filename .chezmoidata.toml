@@ -39,7 +39,7 @@ tailscale = "latest"
 curl = "latest"
 git = "latest"
 zsh = "latest"
-flatpak = { version = "latest", profiles = ["standard"] } # Only needed to back the GUI tier
+flatpak = { version = "latest", profiles = ["standard"] }  # Only needed to back the GUI tier
 # software-properties-common = "latest" # This is Ubuntu/Debian specific, need to gate it.
 shfmt = "latest"
 clangd = "latest"
@@ -65,7 +65,7 @@ nm-connection-editor = { version = "latest", profiles = ["standard"] }
 # restricted below for resource-footprint reasons on "minimal" -- rust's
 # toolchain is ~1GB, and claude-code (~150-250MB) is bigger than the rest of
 # the "minimal" tool list combined.
-rust        = { version = "stable", kind = "toolchains", profiles = ["standard", "headless"] }
+rust = { version = "stable", kind = "toolchains", profiles = ["standard", "headless"] }
 claude-code = { version = "stable", kind = "standalone", profiles = ["standard", "headless"] }
 
 # ===============================================================
@@ -83,7 +83,7 @@ claude-code = { version = "stable", kind = "standalone", profiles = ["standard",
 # specific version genuinely matters (a regression, a breaking change you're
 # not ready for), not as a general habit.
 [user_tools]
-node = { bin = "node", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
+node = { bin = "node", profiles = ["standard", "headless"] }  # Needed by the npm: LSPs below
 
 # Bare names below resolve through mise's own registry, which prefers a
 # prebuilt-binary backend (aqua, confirmed via `mise install -v`) over
@@ -97,7 +97,7 @@ ripgrep = "rg"  # Modern `grep`
 bat = "bat"  # Modern `cat`
 eza = "eza"  # Modern `ls`
 sheldon = "sheldon"  # Zsh Plugin Manager
-"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] } # No aqua backend for this one; stays cargo: (fine, excluded from minimal anyway)
+"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] }  # No aqua backend for this one; stays cargo: (fine, excluded from minimal anyway)
 # zsh-patina has no mise registry entry at all (bare name wouldn't resolve),
 # but it does publish prebuilt GitHub release binaries -- the `github:`
 # backend fetches those directly, same no-cargo-needed rationale as above.
@@ -109,7 +109,7 @@ sheldon = "sheldon"  # Zsh Plugin Manager
 "npm:bash-language-server" = { bin = "bash-language-server", profiles = ["standard", "headless"] }
 "npm:prettier" = { bin = "prettier", profiles = ["standard", "headless"] }
 
-"uv" = { bin = "uv", profiles = ["standard", "headless"] } # Only needed to back the pipx: LSPs/formatters below
+"uv" = { bin = "uv", profiles = ["standard", "headless"] }  # Only needed to back the pipx: LSPs/formatters below
 
 # GitHub Binaries (Managed automatically via asdf community plugins)
 helix = "hx"  # Core editor kept on every profile -- valuable precisely where there's no GUI editor; LSPs below stay standard+headless only
@@ -119,7 +119,7 @@ zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
 gh = "gh"
-yazi = { bin = "ya", profiles = ["standard", "headless"] } # Terminal file manager; image-preview deps add weight, skip on minimal
+yazi = { bin = "ya", profiles = ["standard", "headless"] }  # Terminal file manager; image-preview deps add weight, skip on minimal
 atuin = "atuin"
 
 # AI coding-agent CLIs. Both resolve to aqua (prebuilt release binaries), so
@@ -136,6 +136,7 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 "pipx:ruff" = { bin = "ruff", profiles = ["standard", "headless"] }
 "pipx:basedpyright" = { bin = "basedpyright", profiles = ["standard", "headless"] }
 "pipx:tombi" = { bin = "tombi", profiles = ["standard", "headless"] }  # For TOML formatting
+"pipx:ipython" = { bin = "ipython" }
 
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
