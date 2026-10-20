@@ -203,7 +203,14 @@ be `.tmpl` files (rendered through `chezmoi execute-template` before
 execution) if they need OS conditionals — see `.scripts/gui/ghostty.sh.tmpl`
 for the pattern (checks `.chezmoi.osRelease.id` for ubuntu/debian vs fedora).
 Every script should be idempotent: check `command -v <tool>` (or equivalent)
-before doing work, and `set -euo pipefail` at the top.
+before doing work, and `set -euo pipefail` at the top. `system_tools` daemon
+scripts are the exception to the skip-if-present rule: the dispatcher runs
+them every time the tier runs (even when the binary already exists) and
+embeds each script's hash in the rendered dispatcher, so editing the script
+re-triggers it. That lets them converge more than "is it installed", e.g.
+`.scripts/daemons/tailscale.sh` also enforces the package repo, the systemd
+service and auto-update, and every step in such a script must be safe to
+re-run.
 
 **Personal, app-linked settings** (a new `[personal.<app>]` table, e.g. a
 future `[personal.bitwarden]`): add the table to `.chezmoidata.toml` with an
