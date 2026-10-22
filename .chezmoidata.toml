@@ -136,7 +136,7 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 "pipx:ruff" = { bin = "ruff", profiles = ["standard", "headless"] }
 "pipx:basedpyright" = { bin = "basedpyright", profiles = ["standard", "headless"] }
 "pipx:tombi" = { bin = "tombi", profiles = ["standard", "headless"] }  # For TOML formatting
-"pipx:ipython" = { bin = "ipython" }
+"pipx:ipython" = { bin = "ipython", profiles = ["standard", "headless"] }
 
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
