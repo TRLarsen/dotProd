@@ -130,6 +130,13 @@ for case in cases:
                 check(f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui,
                       f"{where} 03 does not handle {app}")
 
+    # Nested renders must call the running chezmoi binary, not whatever
+    # `chezmoi` is on PATH: after README's bootstrap ~/.local/bin usually
+    # isn't on PATH yet.
+    for rel in ("run_onchange_before_03_install_gui_apps.sh", "run_after_20_configure_personal.sh"):
+        check(not re.search(r"^\s*chezmoi ", read(rel), re.M),
+              f"{where} {rel} calls a bare `chezmoi` (use {{{{ .chezmoi.executable }}}})")
+
     # --- [personal] dispatcher
     personal = read("run_after_20_configure_personal.sh")
     for app, settings in data.get("personal", {}).items():

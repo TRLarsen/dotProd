@@ -76,7 +76,7 @@ if [[ -f "$SCRIPT_PATH" ]]; then
     # the resolved package name (native entries) or the raw TOML value
     # (Flatpak entries).
 {{ if $is_native }}
-    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
+    "{{ $.chezmoi.executable }}" execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
 
 # 2. Native install via the OS package manager (native = true)
 elif command -v {{ $app }} &> /dev/null; then
@@ -86,7 +86,7 @@ else
     $PKG_MANAGER "{{ $app }}"
 fi
 {{ else }}
-    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
+    "{{ $.chezmoi.executable }}" execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
 
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
 elif command -v flatpak &> /dev/null; then
