@@ -14,7 +14,7 @@ echo "Executing user-space environment validation..."
 echo "Installing external user tools..."
 {{ range $tool, $cfg := .external_user_tools }}
 {{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
-SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/{{ $cfg.kind }}/{{ $tool }}.sh"
+SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/{{ $cfg.kind }}/{{ $tool }}.sh"
 if [[ -f "$SCRIPT_PATH" ]]; then
   echo "⚙️ Executing installer for {{ $tool }} (Version: {{ $cfg.version }})..."
   bash "$SCRIPT_PATH" "{{ $cfg.version }}"
