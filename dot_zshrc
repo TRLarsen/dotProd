@@ -64,8 +64,8 @@ else
 fi
 export VISUAL="$EDITOR"
 
-# Rust
-. "$HOME/.cargo/env"
+# Rust (rustup's env file; absent where rust isn't installed, e.g. "minimal")
+[[ -f $HOME/.cargo/env ]] && . "$HOME/.cargo/env"
 
 # Use BitWarden SSH Agent (skip when inside an SSH session so the
 # forwarded agent socket from `ssh -A` is left intact instead)
