@@ -42,20 +42,21 @@ echo "Processing system-level dependencies..."
 {{- $pkgVersion = $osEntry.version }}
 {{- end }}
 {{- end }}
+{{- $script := printf ".scripts/daemons/%s.sh" $tool }}
+{{- if stat (joinPath $.chezmoi.sourceDir $script) }}
+# Always runs (script owns idempotency); hash re-triggers this tier on edits.
+# {{ $script }} sha256: {{ include $script | sha256sum }}
+echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $pkgVersion }})..."
+# We pass the resolved version to the script as $1
+bash "{{ joinPath $.chezmoi.sourceDir $script }}" "{{ $pkgVersion }}"
+{{- else }}
 if ! command -v {{ $tool }} &> /dev/null; then
-    SCRIPT_PATH="$HOME/.local/share/chezmoi/.scripts/daemons/{{ $tool }}.sh"
-
-    if [[ -f "$SCRIPT_PATH" ]]; then
-        echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $pkgVersion }})..."
-        # We pass the resolved version to the script as $1
-        bash "$SCRIPT_PATH" "{{ $pkgVersion }}"
-    else
-        echo "📥 Installing {{ $pkgName }} via system package manager..."
-        $PKG_MANAGER "{{ $pkgName }}"
-    fi
+    echo "📥 Installing {{ $pkgName }} via system package manager..."
+    $PKG_MANAGER "{{ $pkgName }}"
 else
     echo "✔ {{ $tool }} is already present."
 fi
+{{- end }}
 {{- else }}
 echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
 {{- end }}

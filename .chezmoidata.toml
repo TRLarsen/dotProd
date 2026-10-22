@@ -39,7 +39,7 @@ tailscale = "latest"
 curl = "latest"
 git = "latest"
 zsh = "latest"
-flatpak = { version = "latest", profiles = ["standard"] } # Only needed to back the GUI tier
+flatpak = { version = "latest", profiles = ["standard"] }  # Only needed to back the GUI tier
 # software-properties-common = "latest" # This is Ubuntu/Debian specific, need to gate it.
 shfmt = "latest"
 clangd = "latest"
@@ -54,6 +54,7 @@ lldb = "latest"
 strongswan-vpn = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 strongswan-vpn-gnome = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 nm-connection-editor = { version = "latest", profiles = ["standard"] }
+qalc = { fedora = { name = "qalculate", version = "latest" }, ubuntu = { name = "qalc", version = "latest" }, debian = { name = "qalc", version = "latest" } }
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
@@ -65,7 +66,7 @@ nm-connection-editor = { version = "latest", profiles = ["standard"] }
 # restricted below for resource-footprint reasons on "minimal" -- rust's
 # toolchain is ~1GB, and claude-code (~150-250MB) is bigger than the rest of
 # the "minimal" tool list combined.
-rust        = { version = "stable", kind = "toolchains", profiles = ["standard", "headless"] }
+rust = { version = "stable", kind = "toolchains", profiles = ["standard", "headless"] }
 claude-code = { version = "stable", kind = "standalone", profiles = ["standard", "headless"] }
 
 # ===============================================================
@@ -83,7 +84,7 @@ claude-code = { version = "stable", kind = "standalone", profiles = ["standard",
 # specific version genuinely matters (a regression, a breaking change you're
 # not ready for), not as a general habit.
 [user_tools]
-node = { bin = "node", profiles = ["standard", "headless"] } # Needed by the npm: LSPs below
+node = { bin = "node", profiles = ["standard", "headless"] }  # Needed by the npm: LSPs below
 
 # Bare names below resolve through mise's own registry, which prefers a
 # prebuilt-binary backend (aqua, confirmed via `mise install -v`) over
@@ -97,7 +98,7 @@ ripgrep = "rg"  # Modern `grep`
 bat = "bat"  # Modern `cat`
 eza = "eza"  # Modern `ls`
 sheldon = "sheldon"  # Zsh Plugin Manager
-"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] } # No aqua backend for this one; stays cargo: (fine, excluded from minimal anyway)
+"cargo:comrak" = { bin = "comrak", profiles = ["standard", "headless"] }  # No aqua backend for this one; stays cargo: (fine, excluded from minimal anyway)
 # zsh-patina has no mise registry entry at all (bare name wouldn't resolve),
 # but it does publish prebuilt GitHub release binaries -- the `github:`
 # backend fetches those directly, same no-cargo-needed rationale as above.
@@ -109,7 +110,7 @@ sheldon = "sheldon"  # Zsh Plugin Manager
 "npm:bash-language-server" = { bin = "bash-language-server", profiles = ["standard", "headless"] }
 "npm:prettier" = { bin = "prettier", profiles = ["standard", "headless"] }
 
-"uv" = { bin = "uv", profiles = ["standard", "headless"] } # Only needed to back the pipx: LSPs/formatters below
+"uv" = { bin = "uv", profiles = ["standard", "headless"] }  # Only needed to back the pipx: LSPs/formatters below
 
 # GitHub Binaries (Managed automatically via asdf community plugins)
 helix = "hx"  # Core editor kept on every profile -- valuable precisely where there's no GUI editor; LSPs below stay standard+headless only
@@ -119,14 +120,24 @@ zoxide = "zoxide"
 fzf = "fzf"
 starship = "starship"
 gh = "gh"
-yazi = { bin = "ya", profiles = ["standard", "headless"] } # Terminal file manager; image-preview deps add weight, skip on minimal
+yazi = { bin = "ya", profiles = ["standard", "headless"] }  # Terminal file manager; image-preview deps add weight, skip on minimal
 atuin = "atuin"
+
+# AI coding-agent CLIs. Both resolve to aqua (prebuilt release binaries), so
+# no node/npm needed. Excluded from minimal for the same footprint reason as
+# claude-code in [external_user_tools]: codex unpacks to ~430MB, antigravity
+# to ~200MB. antigravity-cli ships `antigravity` plus an `agy` symlink;
+# `agy` is the name Google's own curl installer drops into ~/.local/bin, so
+# checking it lets the collision guard catch a leftover non-mise copy.
+codex = { bin = "codex", profiles = ["standard", "headless"] }
+antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 
 # Pipx Tools (Python dev tooling; excluded from minimal along with uv above)
 # These will be installed using `uv` by default.
 "pipx:ruff" = { bin = "ruff", profiles = ["standard", "headless"] }
 "pipx:basedpyright" = { bin = "basedpyright", profiles = ["standard", "headless"] }
 "pipx:tombi" = { bin = "tombi", profiles = ["standard", "headless"] }  # For TOML formatting
+"pipx:ipython" = { bin = "ipython", profiles = ["standard", "headless"] }
 
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
