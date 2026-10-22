@@ -12,7 +12,7 @@ TARGET_HTML="$HOME/preview.html"
 BODY=$(comrak --gfm "$1")
 
 # 2. Inject into a perfectly padded HTML template with integrated script assets
-cat <<EOF > "$TARGET_HTML"
+cat <<EOF >"$TARGET_HTML"
 <!DOCTYPE html>
 <html>
 <head>
