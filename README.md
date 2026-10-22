@@ -142,7 +142,8 @@ execution, or pre-installation cleanup:
    `.scripts` directory:
    - **System Tools:** `~/.local/share/chezmoi/.scripts/daemons/<tool_name>.sh`
    - **Toolchains:** `~/.local/share/chezmoi/.scripts/toolchains/<tool_name>.sh`
-   - **GUI Apps:** `~/.local/share/chezmoi/.scripts/gui/<tool_name>.sh`
+   - **GUI Apps:** `~/.local/share/chezmoi/.scripts/gui/<tool_name>.sh.tmpl`
+     (always a template, so it can branch on the OS)
 
 The dispatcher will automatically detect the script, execute it, and pass the
 TOML value to it as `$1`.
@@ -171,4 +172,45 @@ To bootstrap a new machine from this repository:
 
 ```bash
 sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply trlarsen/dotProd
+```
+
+To answer the two `chezmoi init` questions non-interactively (e.g. in a
+provisioning script), pass them as flags. Note chezmoi keys these by the
+prompt **text**, not the data key:
+
+```bash
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply \
+  --promptBool "Is this a laptop=false" \
+  --promptChoice "Which install profile is this machine (standard/headless/minimal)=minimal" \
+  trlarsen/dotProd
+```
+
+## 🧪 Testing / CI
+
+Every pull request runs the test suite in `tests/` via GitHub Actions
+(`.github/workflows/ci.yml`); branch protection requires the single
+**`ci-gate`** check, which passes only if all of these pass:
+
+| Job | What it checks |
+|---|---|
+| `lint` | shellcheck + `shfmt -i 4` on plain shell scripts, `zsh -n` on `.zshrc`, TOML syntax |
+| `invariants` | `.chezmoidata.toml` rules the dispatchers rely on (valid profile names, per-distro coverage, installer scripts present, no `[user_tools]`/`[system_tools]` collisions, ...), and that repo-only files are never deployed |
+| `render (<distro>)` | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do |
+| `integration (<distro>, minimal)` | a real `chezmoi init --apply` as a user **without sudo**, then a clean interactive zsh startup (nothing on stderr) |
+
+`integration (<distro>, headless|standard)` also runs on PRs (plus weekly
+and on demand) but is informational only: it downloads the latest release
+of every tool, so upstream breakage shouldn't block a merge.
+
+Run the same checks locally (needs python3 ≥ 3.11, zsh, and podman or
+docker; pinned chezmoi/shellcheck/shfmt are downloaded into
+`tests/.cache/`, and nothing touches your own `~/.config/chezmoi` or
+`$HOME`):
+
+```bash
+tests/run.sh lint
+tests/run.sh invariants
+tests/run.sh render ubuntu               # or: render all
+tests/run.sh integration fedora minimal  # set GITHUB_TOKEN to avoid mise rate limits
+tests/run.sh all                         # everything the merge gate requires (--full adds headless/standard)
 ```
