@@ -6,7 +6,7 @@ set -euo pipefail
 {{- end }}
 
 {{ if not (index .profiles .profile "gui") }}
-echo "⏭️  Skipping gui_apps tier entirely: profile {{ .profile | quote }} has no gui capability."
+echo "⏭️  Skipping gui_apps tier entirely: profile \"{{ .profile }}\" has no gui capability."
 exit 0
 {{ end }}
 
@@ -55,7 +55,7 @@ fi
 
 {{ range $app, $app_identifier := .gui_apps }}
 {{- if ne (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
-echo "⏭️  Skipping {{ $app }} (not in profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $app }} (not in profile \"{{ $.profile }}\")."
 {{- else }}
 {{- $is_native := false }}
 {{- if kindIs "map" $app_identifier }}

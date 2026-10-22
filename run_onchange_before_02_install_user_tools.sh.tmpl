@@ -23,7 +23,7 @@ else
   exit 1
 fi
 {{- else }}
-echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $tool }} (not in profile \"{{ $.profile }}\")."
 {{- end }}
 {{ end }}
 
