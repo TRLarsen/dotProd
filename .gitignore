@@ -1,0 +1,3 @@
+# tests/ scratch: pinned tool binaries and rendered output (see tests/lib/common.sh)
+/tests/.cache/
+/tests/.out/
