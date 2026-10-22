@@ -105,8 +105,10 @@ source <(fzf --zsh)
 # Normal Mode `k` to atuin-up-search -- do not rebind those keys below)
 eval "$(atuin init zsh)"
 
-# Enable native uv autocompletion
-eval "$(uv generate-shell-completion zsh)"
+# Enable native uv autocompletion (uv isn't installed on "minimal")
+if (( $+commands[uv] )); then
+  eval "$(uv generate-shell-completion zsh)"
+fi
 
 # Initialize starship
 eval "$(starship init zsh)"
