@@ -44,10 +44,7 @@ echo "Processing system-level dependencies..."
 {{- end }}
 {{- $script := printf ".scripts/daemons/%s.sh" $tool }}
 {{- if stat (joinPath $.chezmoi.sourceDir $script) }}
-# Custom scripts always run (they own their idempotency, and may converge
-# more than "is it installed" -- repo choice, services, settings). Embedding
-# the script's hash here makes chezmoi re-run this tier when the script
-# changes, not just when .chezmoidata.toml does.
+# Always runs (script owns idempotency); hash re-triggers this tier on edits.
 # {{ $script }} sha256: {{ include $script | sha256sum }}
 echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $pkgVersion }})..."
 # We pass the resolved version to the script as $1
