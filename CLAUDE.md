@@ -280,6 +280,14 @@ render time).
 - Zellij is the terminal multiplexer; Ghostty's config
   (`private_dot_config/ghostty/config`) deliberately unbinds its own
   tab/split/window shortcuts so they don't conflict with Zellij's.
+- Tab completion UI is fzf-tab (Sheldon plugin, listed first in
+  `private_dot_config/sheldon/plugins.toml` so it loads before widget-wrapping
+  plugins). Completion colors come from `LS_COLORS` (the same source eza
+  uses; `dot_zshrc` generates it via `dircolors` where the distro doesn't),
+  and the `_eza_flags` array is shared between the `eza` alias and fzf-tab's
+  directory preview — change eza flags there, not in two places. History
+  Up/`k` search is Atuin's binding; don't rebind those keys after
+  `atuin init`.
 - SSH agent socket in `dot_zshrc` currently points at the Bitwarden Flatpak
   path (`~/.var/app/com.bitwarden.desktop/...`); there are commented-out
   alternates for the Snap path if that ever needs to change back.

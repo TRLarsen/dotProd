@@ -19,11 +19,37 @@ setopt append_history share_history hist_ignore_all_dups hist_reduce_blanks
 # 3. Directory Navigation
 setopt auto_cd
 
-# 4. Tab Completion 
+# 4. Tab Completion (fzf-tab UI loaded via Sheldon below; zstyles are read
+# lazily on <Tab>, so they can be set here)
 autoload -Uz compinit
 compinit
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-zstyle ':completion:*' menu select
+# Case-insensitive. The POSIX-class form matters: the older 'm:{a-zA-Z}={A-Za-z}'
+# spelling inserts a bogus uppercase prefix on an empty word (`cd <Tab>` -> `cd B`).
+zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}'
+zstyle ':completion:*' menu no           # fzf-tab replaces zsh's own menu
+
+# eza and completion colors both come from LS_COLORS. Fedora sets it
+# system-wide, but zsh on Ubuntu/Debian doesn't, so generate it from
+# dircolors' defaults when it's missing so every machine shares one palette.
+[[ -z $LS_COLORS ]] && (( $+commands[dircolors] )) && eval "$(dircolors -b)"
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+zstyle ':completion:*' list-dirs-first true  # Mirrors eza's --group-directories-first
+zstyle ':completion:*:descriptions' format '[%d]'  # Enables fzf-tab group headers
+zstyle ':completion:*:git-checkout:*' sort false   # Keep git's recency order
+
+# Shared by the `eza` alias and fzf-tab's previews so they can't drift apart.
+_eza_flags=(--group-directories-first --icons=always --color=always)
+
+# fzf-tab previews: eza for directories, bat for files, nothing otherwise
+# ($realpath is the candidate resolved against the completed directory).
+zstyle ':fzf-tab:complete:*:*' fzf-preview \
+    "if [[ -d \$realpath ]]; then eza -1 ${_eza_flags[*]} -- \"\$realpath\";
+     elif [[ -f \$realpath ]]; then bat --color=always --style=numbers --line-range=:200 -- \"\$realpath\"; fi"
+# No (empty) preview pane where candidates are never paths, so descriptions
+# get the full width: command names, and `-<Tab>` option lists.
+zstyle ':fzf-tab:complete:-command-:*' fzf-preview ''
+zstyle ':fzf-tab:complete:*:options' fzf-preview ''
+zstyle ':fzf-tab:*' switch-group '<' '>'
 
 # 5. Keybindings & Autocorrect
 bindkey -v                               # vim mode
@@ -115,6 +141,8 @@ czup() {
     echo "Upgrading Rust toolchain..."
     rustup update
     rustup completions zsh > "$HOME/.local/share/zsh/completions/_cargo"
+    echo "Updating Sheldon plugins..."
+    sheldon lock --update
     echo "Upgrades complete. Reloading shell..."
     exec zsh
 }
@@ -122,7 +150,7 @@ czup() {
 # `eza` (`ls` replacement) default
 if command -v eza &> /dev/null; then
     # Base command default behavior
-    alias eza='eza --group-directories-first --icons=always --color=always'
+    alias eza="eza ${_eza_flags[*]}"
 fi
 
 # Enable editing command line in $EDITOR

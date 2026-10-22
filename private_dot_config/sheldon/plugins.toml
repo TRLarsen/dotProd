@@ -1,5 +1,10 @@
 # ~/.config/sheldon/plugins.toml
 shell = "zsh"
 
+# fzf-tab must load after compinit (done in .zshrc before `sheldon source`)
+# and before any plugin that wraps ZLE widgets, so keep it first.
+[plugins.fzf-tab]
+github = "Aloxaf/fzf-tab"
+
 [plugins.zsh-autosuggestions]
 github = "zsh-users/zsh-autosuggestions"
