@@ -6,7 +6,7 @@ set -euo pipefail
 {{- end }}
 
 {{ if not (index .profiles .profile "sudo") }}
-echo "⏭️  Skipping system_tools tier entirely: profile {{ .profile | quote }} has no sudo."
+echo "⏭️  Skipping system_tools tier entirely: profile \"{{ .profile }}\" has no sudo."
 exit 0
 {{ else }}
 echo "Processing system-level dependencies..."
@@ -58,7 +58,7 @@ else
 fi
 {{- end }}
 {{- else }}
-echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $tool }} (not in profile \"{{ $.profile }}\")."
 {{- end }}
 {{ end }}
 {{ end }}

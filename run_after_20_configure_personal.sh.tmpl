@@ -40,7 +40,7 @@ set -euo pipefail
 {{- $requires := "" }}
 {{- if hasKey $settings "requires" }}{{ $requires = index $settings "requires" }}{{ end }}
 {{- if ne (includeTemplate "entry-in-profile" (dict "entry" $settings "profile" $.profile)) "true" }}
-echo "⏭️  Skipping {{ $app }} (not available on profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $app }} (not available on profile \"{{ $.profile }}\")."
 {{- else if or (eq $requires "") (index $ $requires) }}
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/personal/{{ $app }}/configure.sh.tmpl"
 if [[ -f "$SCRIPT_PATH" ]]; then
