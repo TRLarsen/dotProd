@@ -90,12 +90,14 @@ fi
 
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
 elif command -v flatpak &> /dev/null; then
-    # SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers
-    if [[ "{{ $app_identifier }}" == ppa:* ]] || [[ "{{ $app_identifier }}" == */* ]]; then
-        echo "❌ Error: Missing custom installer script for {{ $app }}."
-        echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
-        exit 1
-    fi
+{{- /* SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers.
+       The identifier is a render-time constant, so check it here rather than
+       rendering a `[[ "<constant>" == ppa:* ]]` test into the script. */}}
+{{- if or (hasPrefix "ppa:" $app_identifier) (contains "/" $app_identifier) }}
+    echo "❌ Error: Missing custom installer script for {{ $app }}."
+    echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
+    exit 1
+{{- end }}
 
     echo "📦 Checking Flatpak installation for {{ $app }}..."
 
