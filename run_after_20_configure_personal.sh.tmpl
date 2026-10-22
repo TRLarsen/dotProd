@@ -45,7 +45,7 @@ echo "⏭️  Skipping {{ $app }} (not available on profile \"{{ $.profile }}\")
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/personal/{{ $app }}/configure.sh.tmpl"
 if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🔧 Applying personal configuration for {{ $app }}..."
-    chezmoi execute-template <"$SCRIPT_PATH" | bash
+    "{{ $.chezmoi.executable }}" execute-template <"$SCRIPT_PATH" | bash
 else
     echo "⚠️  [personal.{{ $app }}] is active but no script found at .scripts/personal/{{ $app }}/configure.sh.tmpl" >&2
 fi
