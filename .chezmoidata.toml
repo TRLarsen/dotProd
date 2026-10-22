@@ -54,7 +54,7 @@ lldb = "latest"
 strongswan-vpn = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 strongswan-vpn-gnome = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 nm-connection-editor = { version = "latest", profiles = ["standard"] }
-qalc = {fedora = { name = "qalculate", version = "latest" }, ubuntu = { name = "qalc", version = "latest" }}
+qalc = { fedora = { name = "qalculate", version = "latest" }, ubuntu = { name = "qalc", version = "latest" }, debian = { name = "qalc", version = "latest" } }
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================
