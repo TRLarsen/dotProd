@@ -8,7 +8,9 @@
 #
 #   tests/run.sh lint                           shellcheck, shfmt, zsh -n, TOML parse
 #   tests/run.sh invariants                     .chezmoidata.toml invariants + `chezmoi managed`
-#   tests/run.sh render [distro...]             render every template per distro x profile x laptop
+#   tests/run.sh render [distro...]             render every template per distro x profile x laptop,
+#                                               then the profile-discovery cases (detect)
+#   tests/run.sh detect [distro...]             just the profile-discovery cases of .chezmoi.toml.tmpl
 #   tests/run.sh integration <distro> <profile> real `chezmoi init --apply` in a container
 #   tests/run.sh all [--full]                   everything CI requires (lint, invariants, render on
 #                                               every distro, minimal integration on every distro);
@@ -42,7 +44,15 @@ invariants)
     ;;
 render)
     mapfile -t ds < <(expand DISTROS "$@")
-    for d in "${ds[@]}"; do bash "$TESTS_DIR/render.sh" "$d"; done
+    # detect runs here too so the CI render jobs cover it (no separate job).
+    for d in "${ds[@]}"; do
+        bash "$TESTS_DIR/render.sh" "$d"
+        bash "$TESTS_DIR/detect.sh" "$d"
+    done
+    ;;
+detect)
+    mapfile -t ds < <(expand DISTROS "$@")
+    for d in "${ds[@]}"; do bash "$TESTS_DIR/detect.sh" "$d"; done
     ;;
 integration)
     [[ $# -eq 2 ]] || usage

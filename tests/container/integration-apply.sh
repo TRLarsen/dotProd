@@ -44,6 +44,22 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" -t "v$CHEZMOI_VERS
     --promptBool "$laptop_prompt=false" --promptChoice "$profile_prompt=$profile"
 
 chezmoi="$HOME/.local/bin/chezmoi"
+# Profile discovery on a real user: no sudo for minimal, an admin-group
+# sudoer for headless/standard, and no display in the container (standard
+# gets one in the environment for this step only). Re-runs the real `chezmoi
+# init` with --prompt (ignore the stored answers) --promptDefaults (take
+# every detected default), on a pty so the explanation is printed, writing
+# its config to a scratch path so the real one is left alone.
+display=()
+[[ "$profile" == standard ]] && display=(WAYLAND_DISPLAY=wayland-ci)
+step "Profile discovery: a fresh init on this machine suggests \"$profile\""
+script -qec "env ${display[*]} '$chezmoi' init --prompt --promptDefaults --config-path '$HOME/detected.toml'" \
+    /dev/null </dev/null >"$HOME/detect.out" 2>&1 || fail "detection init failed: $(cat "$HOME/detect.out")"
+sed 's/^/  | /' "$HOME/detect.out"
+grep -q "suggesting \"$profile\"" "$HOME/detect.out" || fail "init did not explain a \"$profile\" suggestion"
+grep -Eq "^[[:space:]]*profile[[:space:]]*=[[:space:]]*\"$profile\"[[:space:]]*$" "$HOME/detected.toml" ||
+    fail "init --promptDefaults chose a different profile: $(cat "$HOME/detected.toml")"
+
 step "Machine-local config written by init"
 "$chezmoi" cat-config
 "$chezmoi" data --format json | grep -Eq "\"profile\": \"$profile\"" ||
