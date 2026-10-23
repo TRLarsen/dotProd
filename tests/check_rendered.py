@@ -126,9 +126,12 @@ for case in cases:
     else:
         check("No display server detected" in gui, f"{where} 03 lost its display-server gate")
         for app, ident in data["gui_apps"].items():
+            handled = f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui
             if in_profile(ident, profile):
-                check(f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui,
-                      f"{where} 03 does not handle {app}")
+                check(handled, f"{where} 03 does not handle {app}")
+            else:
+                check(not handled and f"Skipping {app} (not in profile" in gui,
+                      f"{where} 03 should skip {app} (not in profile {profile})")
 
     # Nested renders must call the running chezmoi binary with this source
     # dir -- via the CHEZMOI_* env chezmoi exports to scripts -- not whatever
