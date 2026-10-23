@@ -167,19 +167,25 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 #                                          on PATH; default: [the key]
 #   other_flatpaks = ["<Flatpak ID>", ...] other Flatpak IDs of the same app
 #                                          (e.g. a pre-rename ID); default: none
+#                                          (illustrative, not a real entry:
+#                                          myapp = { flatpak = "org.new.MyApp",
+#                                          other_flatpaks = ["org.old.MyApp"] })
+# `native = true` entries have no Flatpak ID to derive, so they get the Snap
+# probe (default: the key) but NO Flatpak probe unless you set other_flatpaks.
 # Custom-script apps aren't probed (their script checks for itself). See
 # .chezmoitemplates/gui-app-spec for the exact validation rules.
 [gui_apps]
 ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh.tmpl (official mkasberg/ghostty-ubuntu installer)
-# Brave's own .deb/.rpm installs `brave-browser` (Arch's brave-bin: `brave`);
-# its Snap is "brave", which the default already covers.
-brave = { flatpak = "com.brave.Browser", bins = ["brave-browser", "brave"] }
+# Brave's own .deb/.rpm install /usr/bin/brave-browser and
+# /usr/bin/brave-browser-stable (checked against Brave's rpm repo); its Snap
+# is "brave", which the default already covers. (Arch's AUR brave-bin
+# reportedly ships plain `brave`, unverified; the key is probed anyway.)
+brave = { flatpak = "com.brave.Browser", bins = ["brave-browser", "brave-browser-stable"] }
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
-# Flatpak (official Flathub build). Flathub renamed it from
-# io.github.zen_browser.zen; an install under the old ID would be a second
-# copy. See .scripts/personal/zen/configure.sh.tmpl for opt-in prefs/extensions sync.
-zen = { flatpak = "app.zen_browser.zen", other_flatpaks = ["io.github.zen_browser.zen"] }
+# Flatpak (official Flathub build). See .scripts/personal/zen/configure.sh.tmpl
+# for opt-in prefs/extensions sync.
+zen = "app.zen_browser.zen"
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)

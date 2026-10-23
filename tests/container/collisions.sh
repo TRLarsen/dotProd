@@ -115,7 +115,8 @@ render() {
         --cache "$work/cache" --destination "$work/home" --no-tty execute-template <"$1/$3" >"$4"
 }
 
-FIXTURE='fixture-native = { native = true, snap = "fixture-native-snap", bins = ["fixture-native-bin"], other_flatpaks = ["org.example.FixtureNative"] }'
+FIXTURE='fixture-flatpak = { flatpak = "org.example.FixtureFlatpak", other_flatpaks = ["org.example.OldFixtureFlatpak"] }
+fixture-native = { native = true, snap = "fixture-native-snap", bins = ["fixture-native-bin"], other_flatpaks = ["org.example.FixtureNative"] }'
 make_src "$work/src" <<<"$FIXTURE"
 render "$work/src" standard private_dot_local/bin/executable_dotprod-check.tmpl "$work/dotprod-check"
 render "$work/src" minimal private_dot_local/bin/executable_dotprod-check.tmpl "$work/dotprod-check-minimal"
@@ -194,9 +195,9 @@ reset
 
 step "dotprod-check: alternate Flatpak ID of a Flatpak-backed app"
 reset
-run "$DC" 1 STUB_FLATPAKS=io.github.zen_browser.zen:user
-has "[COLLISION] zen: the Flatpak io.github.zen_browser.zen is already installed (user)"
-has "fix: flatpak uninstall --user io.github.zen_browser.zen"
+run "$DC" 1 STUB_FLATPAKS=org.example.OldFixtureFlatpak:user
+has "[COLLISION] fixture-flatpak: the Flatpak org.example.OldFixtureFlatpak is already installed (user)"
+has "fix: flatpak uninstall --user org.example.OldFixtureFlatpak"
 
 step "dotprod-check: Flatpak of a native = true app"
 reset

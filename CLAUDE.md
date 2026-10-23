@@ -195,7 +195,9 @@ interactive (TTY, y/N per command) and refuses under chezmoi.
 The `[gui_apps]` tier (03) runs the GUI half before installing: a Flatpak entry
 collides with its Snap, a non-Snap/non-Flatpak binary on `$PATH`, a native
 `/usr/share/applications/<flatpak-id>.desktop`, or an `other_flatpaks` ID; a
-`native = true` entry with its Snap or `other_flatpaks`; custom-script entries
+`native = true` entry with its Snap (default: the key) only; it gets no
+Flatpak probe by default because no Flatpak ID can be derived from the key, so
+opt in with `other_flatpaks` on the entry; custom-script entries
 are not probed. Entries are validated/normalized by the `gui-app-spec` partial:
 a plain Flatpak-ID string, or a table with exactly one of `flatpak = "<id>"` /
 `native = true`, plus optional `snap`, `bins`, `other_flatpaks`, `profiles`

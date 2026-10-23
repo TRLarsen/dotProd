@@ -122,6 +122,9 @@ alternate Flatpak ID. Every finding prints the exact removal command
 `--fix` needs a terminal, confirms each command, and is never run by chezmoi.
 Per-app names that differ between install methods can be overridden in
 `[gui_apps]` (`snap`, `bins`, `other_flatpaks`; see the comments there).
+`native = true` entries are probed for a Snap of the same name by default but
+not for a Flatpak of the same app (no ID can be derived from the key); set
+`other_flatpaks` on the entry to opt in.
 
 ## 🛠️ Configuration (`.chezmoidata.toml`)
 
