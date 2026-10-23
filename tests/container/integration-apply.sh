@@ -88,24 +88,27 @@ fi
 echo "ok: interactive zsh startup is clean"
 
 step "Machine-local ~/.zshrc.local is sourced last and left alone by chezmoi"
-# Overrides EDITOR, which the shared .zshrc sets unconditionally, so the
-# value seen in the shell proves the local file ran after it.
+# Overrides EDITOR (set mid-file) and the gitclean alias (defined at the very
+# end of the shared .zshrc), so the values seen in the shell prove the local
+# file ran after both, i.e. that the hook wasn't moved above the last settings.
 cat >"$HOME/.zshrc.local" <<'EOF'
 export EDITOR=dotprod-local-editor
+alias gitclean='echo dotprod-local-gitclean'
 dotprod_local_marker=sourced
 EOF
 local_orig="$(<"$HOME/.zshrc.local")"
 # shellcheck disable=SC2016 # Expanded by the inner zsh, not here.
-zsh_start "$HOME/zsh-local.err" 'print -r -- "$dotprod_local_marker:$EDITOR" >"$HOME/zsh-local.out"' ||
+zsh_start "$HOME/zsh-local.err" 'print -r -- "$dotprod_local_marker:$EDITOR:$aliases[gitclean]" >"$HOME/zsh-local.out"' ||
     fail "interactive zsh exited non-zero with ~/.zshrc.local present: $(cat "$HOME/zsh-local.err")"
 if [[ -s "$HOME/zsh-local.err" ]]; then
     sed 's/^/  | /' "$HOME/zsh-local.err" >&2
     fail "interactive zsh wrote to stderr with ~/.zshrc.local present"
 fi
 got="$(cat "$HOME/zsh-local.out")"
-[[ "$got" == "sourced:dotprod-local-editor" ]] ||
-    fail "expected ~/.zshrc.local to be sourced after the shared .zshrc (marker:EDITOR = 'sourced:dotprod-local-editor', got '$got')"
-echo "ok: sourced, and its EDITOR overrides the shared one"
+want="sourced:dotprod-local-editor:echo dotprod-local-gitclean"
+[[ "$got" == "$want" ]] ||
+    fail "expected ~/.zshrc.local to be sourced after the shared .zshrc (marker:EDITOR:gitclean = '$want', got '$got')"
+echo "ok: sourced, and it overrides both an early and the last setting of the shared .zshrc"
 
 "$chezmoi" apply --no-tty
 # (No cmp/diff: Fedora's baseline has no diffutils.)

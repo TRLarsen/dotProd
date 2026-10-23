@@ -74,9 +74,10 @@ export VISUAL="$EDITOR"
 # and the plain-Linux one (native packages). For Snap, every revision dir is
 # checked rather than just `current`: the socket lives in the revision the
 # running app started from, which `current` stops pointing at once a refresh
-# lands. Of the sockets that exist, the newest wins: it belongs to the agent
-# started most recently, so a stale socket left behind by an older revision
-# or a previous install method can't shadow the live one.
+# lands. Of the sockets that exist, the newest file wins, so a socket left by
+# an older revision or install method can't shadow the current one. (Newest
+# file, not necessarily a live agent: -S doesn't test connectivity, so a
+# crashed agent's stale socket can still win.)
 if [[ -z $SSH_CONNECTION ]]; then
   _bw_ssh_agent_sock=
   for _bw_sock in \
