@@ -239,6 +239,22 @@ commented out of `[gui_apps]`/`[system_tools]`). Follow
 co-locate any non-script assets it needs (e.g. its `user.js`) in the same
 `.scripts/personal/<app>/` directory.
 
+**Machine-local shell settings** (untracked, one-machine-only tweaks: a work
+proxy, an extra `PATH` entry, a host-specific alias) go in `~/.zshrc.local`
+on that machine, not in this repo. `dot_zshrc` sources it as its very last
+statement, only if it's readable, so it overrides anything shared. chezmoi
+never owns it — there's no source file for it, there's no `exact_` on
+`$HOME`, and `.chezmoiignore` lists it so even `chezmoi add ~/.zshrc.local`
+is a no-op (keep it that way; `tests/check_managed.sh` and the integration
+test assert it). Keep that hook last in `dot_zshrc`: anything added after it
+can't be overridden locally. Settings the shared `.zshrc` consumes during
+startup (e.g. `ZELLIJ_AUTO_ATTACH` for Zellij's auto-start) are too late
+there and belong in the also-unmanaged `~/.zshenv`. This is deliberately a
+different mechanism from `[personal]`/`requires`: those are declarative,
+tracked in git, and apply on every machine they match; `~/.zshrc.local` is
+the untracked escape hatch. A tweak that shows up on several machines, or
+one that a whole machine class needs, belongs in the repo instead.
+
 ## Chezmoi file-naming conventions in this repo
 
 - `dot_zshrc` → deploys to `~/.zshrc`.
@@ -299,7 +315,8 @@ check, which passes only when every required job passed:
   `[system_tools]`; `npm:`/`pipx:`/`cargo:` tools only appear on profiles
   that also get node/uv/rust; `requires` names a real machine-local key;
   ...). Plus `tests/check_managed.sh`: `chezmoi managed` never includes
-  repo-only files (README/CLAUDE/LICENSE, `tests/`, `.github/`).
+  repo-only files (README/CLAUDE/LICENSE, `tests/`, `.github/`) or
+  `~/.zshrc.local`.
 - **render (fedora/ubuntu/debian)** — inside each distro's container, render
   every `*.tmpl` for each profile × laptop answer (`.chezmoi.toml.tmpl` via
   `execute-template --init`), `bash -n` + shellcheck (`--severity=warning`)
@@ -311,7 +328,10 @@ check, which passes only when every required job passed:
 - **integration (<distro>, minimal)** — real `chezmoi init --apply` via
   the README bootstrap, as a non-root user **without sudo**, then a second
   apply + `chezmoi verify`, `mise ls --missing`, and an interactive zsh
-  (on a pty) that must print nothing to stderr.
+  (on a pty) that must print nothing to stderr; then it drops a
+  `~/.zshrc.local` and asserts it's sourced after the shared `.zshrc` (its
+  `EDITOR` wins), still nothing on stderr, and that `chezmoi apply`/`add`
+  leave it alone.
 
 `integration (<distro>, headless|standard)` runs the same with passwordless
 sudo on PRs, weekly and on demand, but is `continue-on-error` and not part
@@ -350,6 +370,11 @@ loudly by design.
   directory preview — change eza flags there, not in two places. History
   Up/`k` search is Atuin's binding; don't rebind those keys after
   `atuin init`.
-- SSH agent socket in `dot_zshrc` currently points at the Bitwarden Flatpak
-  path (`~/.var/app/com.bitwarden.desktop/...`); there are commented-out
-  alternates for the Snap path if that ever needs to change back.
+- `SSH_AUTH_SOCK` in `dot_zshrc` points at Bitwarden's SSH agent whichever
+  way Bitwarden was installed: it checks the three socket paths Bitwarden
+  documents (Flatpak `~/.var/app/com.bitwarden.desktop/data/`, Snap
+  `~/snap/bitwarden/<rev>/`, native `~/`, each `.bitwarden-ssh-agent.sock`)
+  and uses the newest one that's actually a socket. It's left unset when
+  none exists, and the whole block is skipped inside SSH sessions so `ssh -A`
+  forwarding wins. A machine that wants a different agent can override
+  `SSH_AUTH_SOCK` in `~/.zshrc.local`.

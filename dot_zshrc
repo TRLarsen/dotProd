@@ -68,21 +68,29 @@ export VISUAL="$EDITOR"
 [[ -f $HOME/.cargo/env ]] && . "$HOME/.cargo/env"
 
 # Use BitWarden SSH Agent (skip when inside an SSH session so the
-# forwarded agent socket from `ssh -A` is left intact instead)
+# forwarded agent socket from `ssh -A` is left intact instead). Where the
+# socket lives depends on how Bitwarden was installed, so check each path
+# Bitwarden documents (https://bitwarden.com/help/ssh-agent/): Flatpak, Snap,
+# and the plain-Linux one (native packages). For Snap, every revision dir is
+# checked rather than just `current`: the socket lives in the revision the
+# running app started from, which `current` stops pointing at once a refresh
+# lands. Of the sockets that exist, the newest file wins, so a socket left by
+# an older revision or install method can't shadow the current one. (Newest
+# file, not necessarily a live agent: -S doesn't test connectivity, so a
+# crashed agent's stale socket can still win.)
 if [[ -z $SSH_CONNECTION ]]; then
-  # Flatpak
-  _bw_ssh_agent_sock=/home/trlarsen/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock
-
-  # # Snap
-  # _bw_ssh_agent_sock=/home/tyler-larsen/snap/bitwarden/current/.bitwarden-ssh-agent.sock
-
-  # # Dynamically find the newest active Bitwarden snap socket
-  # _bw_ssh_agent_sock=$(ls -td $HOME/snap/bitwarden/[0-9]*/.bitwarden-ssh-agent.sock 2>/dev/null | head -n 1)
-
-  # Only point at it if the socket is actually live; otherwise leave
-  # SSH_AUTH_SOCK unset rather than pointing at a dead path.
-  [[ -S $_bw_ssh_agent_sock ]] && export SSH_AUTH_SOCK=$_bw_ssh_agent_sock
-  unset _bw_ssh_agent_sock
+  _bw_ssh_agent_sock=
+  for _bw_sock in \
+      $HOME/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock \
+      $HOME/snap/bitwarden/*/.bitwarden-ssh-agent.sock(N) \
+      $HOME/.bitwarden-ssh-agent.sock; do
+    # Only consider actual sockets, so SSH_AUTH_SOCK is left unset rather
+    # than pointing at a dead path when Bitwarden isn't installed.
+    [[ -S $_bw_sock && ( -z $_bw_ssh_agent_sock || $_bw_sock -nt $_bw_ssh_agent_sock ) ]] &&
+      _bw_ssh_agent_sock=$_bw_sock
+  done
+  [[ -n $_bw_ssh_agent_sock ]] && export SSH_AUTH_SOCK=$_bw_ssh_agent_sock
+  unset _bw_sock _bw_ssh_agent_sock
 fi
 
 # ----------------------------------------
@@ -177,3 +185,17 @@ function y() {
 # Command that deletes git branches that have been merged/removed from the remote
 # This alias is safe and will not delete branches with unmerged changes
 alias gitclean="git fetch -p && git branch -vv | awk '/: gone]/{print \$1}' | xargs -r git branch -d"
+
+# ----------------------------------------
+# Machine-local overrides
+# ----------------------------------------
+
+# Untracked, per-machine settings (work proxies, this box's PATH extras,
+# aliases you don't want in the shared repo). chezmoi never manages this
+# file (see .chezmoiignore), so it's never overwritten or committed. Sourced
+# last so it can override anything above. Settings that must exist *before*
+# the tool inits above run (e.g. ZELLIJ_AUTO_ATTACH) go in ~/.zshenv instead,
+# which zsh reads before this file and chezmoi doesn't manage either.
+if [[ -r $HOME/.zshrc.local ]]; then
+  source "$HOME/.zshrc.local"
+fi
