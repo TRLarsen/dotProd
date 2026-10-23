@@ -7,7 +7,9 @@ For each case this re-derives, straight from .chezmoidata.toml, what every
 install tier *should* do on that profile/distro, and checks the rendered
 dispatcher scripts agree. In particular it pins down the cross-file
 contract CLAUDE.md calls out: the [tools] table in the rendered mise config
-and the MISE_TOOLS collision-check array must list the same tools.
+and the MISE_TOOLS collision-check array must list the same tools -- and
+that the collision checks rendered into the install tiers are byte-identical
+to the ones in ~/.local/bin/dotprod-check.
 """
 
 import re
@@ -76,13 +78,19 @@ for case in cases:
           f"{where} mise config lost pipx.uvx = true")
 
     user = read("run_onchange_before_02_install_user_tools.sh")
-    arr = re.search(r"^MISE_TOOLS=\((.*?)^\)", user, re.S | re.M)
-    if not arr:
-        errors.append(f"{where} no MISE_TOOLS=( ... ) array in rendered 02 script")
-    else:
-        got_bins = sorted(re.findall(r'"([^"]+)"', arr.group(1)))
-        check(got_bins == expected_bins,
-              f"{where} MISE_TOOLS collision array mismatch:\n  got      {got_bins}\n  expected {expected_bins}")
+    check_tool = read("private_dot_local/bin/executable_dotprod-check")
+    for rel, text in (("02", user), ("dotprod-check", check_tool)):
+        arr = re.search(r"^MISE_TOOLS=\((.*?)^\)", text, re.S | re.M)
+        if not arr:
+            errors.append(f"{where} no MISE_TOOLS=( ... ) array in rendered {rel}")
+        else:
+            got_bins = sorted(re.findall(r'"([^"]+)"', arr.group(1)))
+            check(got_bins == expected_bins,
+                  f"{where} {rel} MISE_TOOLS collision array mismatch:\n  got      {got_bins}\n  expected {expected_bins}")
+    check(contains_line(user, "dotprod_check_user_tools") and contains_line(user, 'dotprod_abort_if_collisions "Environment initialization"'),
+          f"{where} 02 no longer runs (and aborts on) the [user_tools] collision check")
+    check(user.index("dotprod_check_user_tools\n") < user.index("# 3. MISE RUNTIME ENGINE"),
+          f"{where} 02 must run the collision check before bootstrapping mise")
 
     # --- [external_user_tools]
     for tool, ext in data["external_user_tools"].items():
@@ -123,15 +131,56 @@ for case in cases:
     gui = read("run_onchange_before_03_install_gui_apps.sh")
     if not caps["gui"]:
         check("Skipping gui_apps tier entirely" in gui, f"{where} 03 should skip the whole tier (no gui)")
+        check("[gui_apps] skipped" in check_tool and "dotprod_check_gui_apps\n" not in check_tool.split("run_checks()", 1)[-1],
+              f"{where} dotprod-check should skip [gui_apps] (no gui)")
     else:
         check("No display server detected" in gui, f"{where} 03 lost its display-server gate")
+        # The duplicate-install guard must run (and abort) before any install.
+        installs = re.search(r"^\s*(sudo flatpak |sudo apt-get |\$PKG_MANAGER|SCRIPT_PATH=)", gui, re.M)
+        first_install = installs.start() if installs else len(gui)
+        check(contains_line(gui, 'dotprod_abort_if_collisions "gui_apps install"')
+              and gui.index('dotprod_abort_if_collisions "gui_apps install"') < first_install,
+              f"{where} 03 must run the [gui_apps] collision check before installing anything")
         for app, ident in data["gui_apps"].items():
-            handled = f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui
-            if in_profile(ident, profile):
-                check(handled, f"{where} 03 does not handle {app}")
-            else:
-                check(not handled and f"Skipping {app} (not in profile" in gui,
+            if not in_profile(ident, profile):
+                check(f"Skipping {app} (not in profile" in gui
+                      and f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' not in gui
+                      and f'"{app}"' not in gui.split("dotprod_abort_if_collisions", 1)[0].split("dotprod_check_gui_apps()", 1)[-1],
                       f"{where} 03 should skip {app} (not in profile {profile})")
+                continue
+            table = ident if isinstance(ident, dict) else {}
+            if (repo / ".scripts" / "gui" / f"{app}.sh.tmpl").is_file():
+                check(f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui, f"{where} 03 does not run {app}'s script")
+                check(f'DOTPROD_GUI_SKIPPED+=("{app}")' in gui, f"{where} 03 should list {app} as a custom-script app")
+                continue
+            check(f'dotprod_gui_check_snap "{app}" "{table.get("snap", app)}"' in gui, f"{where} 03 does not probe {app}'s Snap")
+            others = table.get("other_flatpaks", [])
+            if others:
+                check(contains_line(gui, " ".join(f'"{x}"' for x in [app, *others]).join(["dotprod_gui_check_flatpaks ", ""])),
+                      f"{where} 03 does not probe {app}'s other Flatpaks {others}")
+            if table.get("native"):
+                check(contains_line(gui, f'$PKG_MANAGER "{app}"'), f"{where} 03 does not install native {app}")
+            else:
+                fid = table.get("flatpak", ident)
+                check(contains_line(gui, f'sudo flatpak install -y flathub "{fid}"'), f"{where} 03 does not install Flatpak {fid}")
+                bins = table.get("bins", [app])
+                check(contains_line(gui, "dotprod_gui_check_bins " + " ".join(f'"{x}"' for x in [app, *bins])),
+                      f"{where} 03 does not probe {app}'s native binaries {bins}")
+                check(contains_line(gui, f'dotprod_gui_check_desktop_file "{app}" "{fid}"'),
+                      f"{where} 03 does not probe for a native {fid}.desktop")
+
+    # One source of truth: the install tiers and dotprod-check must render
+    # byte-identical check code (they include the same partials).
+    def block(text: str, start: str, end: str) -> str | None:
+        m = re.search(re.escape(start) + r".*?" + re.escape(end), text, re.S)
+        return m.group(0) if m else None
+    for name, tier_text, start, end in (
+        ("collision-check-lib", user, "# ---- collision-check helpers", "# ---- end collision-check helpers ----"),
+        ("collision-check-user-tools", user, "# ---- [user_tools] collision check", "# ---- end [user_tools] collision check ----"),
+        ("collision-check-gui-apps", gui, "# ---- [gui_apps] duplicate-install check", "# ---- end [gui_apps] duplicate-install check ----"),
+    ):
+        a, b = block(tier_text, start, end), block(check_tool, start, end)
+        check(a is not None and a == b, f"{where} rendered {name} differs between its install tier and dotprod-check")
 
     # Nested renders must call the running chezmoi binary with this source
     # dir -- via the CHEZMOI_* env chezmoi exports to scripts -- not whatever

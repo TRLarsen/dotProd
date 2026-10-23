@@ -1,0 +1,62 @@
+{{- /*
+The [user_tools] PATH-collision check, shared by
+run_onchange_before_02_install_user_tools.sh.tmpl (which aborts on a
+collision before mise installs anything) and ~/.local/bin/dotprod-check.
+Needs "collision-check-lib" rendered first. Included as
+{{ includeTemplate "collision-check-user-tools" . }}.
+
+Each [user_tools] value is either a plain binary-name string (available on
+every profile) or a table `{ bin = "...", profiles = [...] }` for entries
+that need restricting -- mirrors the flat-string-vs-table duality already
+used in [system_tools]. Only tools available on this profile go into the
+array, matching what private_dot_config/mise/config.toml.tmpl will actually
+declare in [tools].
+*/ -}}
+# ---- [user_tools] collision check (.chezmoitemplates/collision-check-user-tools) ----
+MISE_TOOLS=(
+{{- range $package, $cfg := .user_tools }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
+{{- $binary := $cfg }}
+{{- if kindIs "map" $cfg }}{{ $binary = $cfg.bin }}{{ end }}
+    "{{ $binary }}"
+{{- end }}
+{{- end }}
+)
+
+# Copies under these don't count as outside installs: mise's own dirs, plus
+# ~/.cargo/bin (the [external_user_tools] rust toolchain's own install dir).
+dotprod_is_mise_path() {
+    case "$1" in
+    *".local/share/mise"* | *".local/bin/mise"* | *".cargo/bin"*) return 0 ;;
+    esac
+    return 1
+}
+
+# A copy that isn't mise's and comes FIRST on PATH is a collision: it's what
+# actually runs, silently shadowing the mise-managed tool (on a fresh
+# machine, before mise exists, that's any outside copy at all). A non-mise
+# copy further down PATH is only reported -- the mise copy wins wherever
+# mise's PATH entries are active, but it's still a second install (e.g. a
+# distro-preinstalled /usr/bin/bat) that plain `sh`/cron/sudo would run.
+dotprod_check_user_tools() {
+    local tool path real position
+    for tool in "${MISE_TOOLS[@]}"; do
+        position=0
+        while IFS= read -r path; do
+            position=$((position + 1))
+            real="$(readlink -f "$path" 2>/dev/null)" || real="$path"
+            if dotprod_is_mise_path "$path" || dotprod_is_mise_path "$real"; then
+                continue
+            fi
+            dotprod_remedy_for_path "$path"
+            if ((position == 1)); then
+                dotprod_record collision "$tool: $path$(dotprod_pkg_note) is first on PATH, ahead of the mise-managed copy" \
+                    "$DOTPROD_REMEDY_CMD" "$DOTPROD_REMEDY_HINT"
+            else
+                dotprod_record warning "$tool: $path$(dotprod_pkg_note) is also installed (shadowed by an earlier copy on PATH)" \
+                    "$DOTPROD_REMEDY_CMD" "$DOTPROD_REMEDY_HINT"
+            fi
+        done < <(dotprod_path_hits "$tool")
+    done
+}
+# ---- end [user_tools] collision check ----

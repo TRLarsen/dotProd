@@ -1,0 +1,124 @@
+{{- /*
+Validates one [gui_apps] entry and normalizes it into a JSON object, so the
+GUI install tier (run_onchange_before_03) and the duplicate-install checks
+(the "collision-check-gui-apps" partial, also used by ~/.local/bin/dotprod-check)
+read every entry the same way. Fails the render loudly on malformed data
+rather than guessing. Used as:
+
+    {{- $spec := includeTemplate "gui-app-spec" (dict "app" $app "entry" $entry "sourceDir" $.chezmoi.sourceDir) | fromJson }}
+
+Accepted entry forms (see [gui_apps] in .chezmoidata.toml):
+  "<flatpak-id>"                     Flatpak from Flathub
+  "custom_script" (or any value)     with .scripts/gui/<app>.sh.tmpl present:
+                                     that script installs it, value passed as $1
+  { flatpak = "<flatpak-id>", ... }  Flatpak, with probe overrides below
+  { native = true, ... }             OS package named <app>, with probe overrides
+  ...plus an optional `profiles = [...]` on either table form.
+
+Probe overrides (all optional, table form only) name this same app as some
+OTHER install method would ship it, so an existing install of it can be
+found before installing a second copy:
+  snap           = "<snap name>"          default: the app key
+  bins           = ["<binary>", ...]      binaries a native/manual install
+                                          puts on PATH; default: [the app key].
+                                          For native entries these are also
+                                          what "already installed" means.
+  other_flatpaks = ["<flatpak-id>", ...]  Flatpak IDs that would duplicate
+                                          it (renamed/alternate Flathub IDs,
+                                          or a native entry's Flatpak);
+                                          default: none
+A custom-script app skips these probes (its script decides whether it's
+already installed), so setting them on one fails rather than being ignored.
+
+Output keys: method ("flatpak" | "native" | "script"), flatpak, snap, bins,
+other_flatpaks, script_arg (the $1 a custom script receives).
+*/ -}}
+{{- $app := .app -}}
+{{- $entry := .entry -}}
+{{- $where := printf "gui_apps.%s" $app -}}
+{{- $flatpakRe := `^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2,}$` -}}
+{{- $binRe := `^[A-Za-z0-9._+-]+$` -}}
+{{- if not (regexMatch $binRe $app) -}}
+{{-   fail (printf "%s: app keys must be plain names (letters, digits, . _ + -); they become package/script/binary names" $where) -}}
+{{- end -}}
+{{- $hasScript := stat (joinPath .sourceDir ".scripts/gui" (printf "%s.sh.tmpl" $app)) -}}
+{{- $spec := dict "method" "" "flatpak" "" "snap" $app "bins" (list $app) "other_flatpaks" (list) "script_arg" "" -}}
+{{- if kindIs "string" $entry -}}
+{{-   if $hasScript -}}
+{{-     $_ := set $spec "method" "script" -}}
+{{-     $_ := set $spec "script_arg" $entry -}}
+{{-   else if or (eq $entry "custom_script") (hasPrefix "ppa:" $entry) (contains "/" $entry) -}}
+{{-     fail (printf "%s = %q is not a Flatpak ID, so it needs a custom installer at .scripts/gui/%s.sh.tmpl, which doesn't exist" $where $entry $app) -}}
+{{-   else if not (regexMatch $flatpakRe $entry) -}}
+{{-     fail (printf "%s = %q doesn't look like a Flatpak app ID (reverse-DNS, e.g. \"org.videolan.VLC\")" $where $entry) -}}
+{{-   else -}}
+{{-     $_ := set $spec "method" "flatpak" -}}
+{{-     $_ := set $spec "flatpak" $entry -}}
+{{-     $_ := set $spec "script_arg" $entry -}}
+{{-   end -}}
+{{- else if kindIs "map" $entry -}}
+{{-   range $key, $_ := $entry -}}
+{{-     if not (has $key (list "flatpak" "native" "snap" "bins" "other_flatpaks" "profiles")) -}}
+{{-       fail (printf "%s has unknown key %q (supported: flatpak, native, snap, bins, other_flatpaks, profiles)" $where $key) -}}
+{{-     end -}}
+{{-   end -}}
+{{-   if and (hasKey $entry "native") (not (and (kindIs "bool" $entry.native) $entry.native)) -}}
+{{-     fail (printf "%s sets native = %v; remove native, use a plain Flatpak-ID string (or flatpak = \"...\") instead, or set native = true" $where $entry.native) -}}
+{{-   end -}}
+{{-   if eq (hasKey $entry "flatpak") (hasKey $entry "native") -}}
+{{-     fail (printf "%s is a table, so it needs exactly one of flatpak = \"<flatpak-id>\" or native = true" $where) -}}
+{{-   end -}}
+{{-   if hasKey $entry "flatpak" -}}
+{{-     if not (and (kindIs "string" $entry.flatpak) (regexMatch $flatpakRe $entry.flatpak)) -}}
+{{-       fail (printf "%s: flatpak = %v doesn't look like a Flatpak app ID (reverse-DNS, e.g. \"org.videolan.VLC\")" $where $entry.flatpak) -}}
+{{-     end -}}
+{{-     $_ := set $spec "method" "flatpak" -}}
+{{-     $_ := set $spec "flatpak" $entry.flatpak -}}
+{{-     $_ := set $spec "script_arg" $entry.flatpak -}}
+{{-   else -}}
+{{-     $_ := set $spec "method" "native" -}}
+{{-     $_ := set $spec "script_arg" $app -}}
+{{-   end -}}
+{{-   if hasKey $entry "snap" -}}
+{{-     if not (and (kindIs "string" $entry.snap) (regexMatch `^[a-z0-9][a-z0-9-]*$` $entry.snap)) -}}
+{{-       fail (printf "%s: snap = %v is not a valid Snap name (lowercase letters, digits, -)" $where $entry.snap) -}}
+{{-     end -}}
+{{-     $_ := set $spec "snap" $entry.snap -}}
+{{-   end -}}
+{{-   if hasKey $entry "bins" -}}
+{{-     if not (and (kindIs "slice" $entry.bins) (gt (len $entry.bins) 0)) -}}
+{{-       fail (printf "%s: bins must be a non-empty list of binary names, got %v" $where $entry.bins) -}}
+{{-     end -}}
+{{-     range $entry.bins -}}
+{{-       if not (and (kindIs "string" .) (regexMatch $binRe .)) -}}
+{{-         fail (printf "%s: bins entry %v is not a plain binary name" $where .) -}}
+{{-       end -}}
+{{-     end -}}
+{{-     $_ := set $spec "bins" $entry.bins -}}
+{{-   end -}}
+{{-   if hasKey $entry "other_flatpaks" -}}
+{{-     if not (kindIs "slice" $entry.other_flatpaks) -}}
+{{-       fail (printf "%s: other_flatpaks must be a list of Flatpak app IDs, got %v" $where $entry.other_flatpaks) -}}
+{{-     end -}}
+{{-     range $entry.other_flatpaks -}}
+{{-       if not (and (kindIs "string" .) (regexMatch $flatpakRe .)) -}}
+{{-         fail (printf "%s: other_flatpaks entry %v doesn't look like a Flatpak app ID" $where .) -}}
+{{-       end -}}
+{{-       if eq . (toString $spec.flatpak) -}}
+{{-         fail (printf "%s: other_flatpaks lists %q, which is the app's own Flatpak ID" $where .) -}}
+{{-       end -}}
+{{-     end -}}
+{{-     $_ := set $spec "other_flatpaks" $entry.other_flatpaks -}}
+{{-   end -}}
+{{-   if $hasScript -}}
+{{-     range (list "snap" "bins" "other_flatpaks") -}}
+{{-       if hasKey $entry . -}}
+{{-         fail (printf "%s sets %s, but .scripts/gui/%s.sh.tmpl installs it and the duplicate-install probes skip custom-script apps -- remove the key (or the script)" $where . $app) -}}
+{{-       end -}}
+{{-     end -}}
+{{-     $_ := set $spec "method" "script" -}}
+{{-   end -}}
+{{- else -}}
+{{-   fail (printf "%s must be a Flatpak ID string or a table ({ flatpak = ... } / { native = true }), got %v" $where $entry) -}}
+{{- end -}}
+{{- toJson $spec -}}

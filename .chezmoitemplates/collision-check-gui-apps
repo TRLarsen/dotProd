@@ -1,0 +1,93 @@
+{{- /*
+The [gui_apps] duplicate-install check, shared by
+run_onchange_before_03_install_gui_apps.sh.tmpl (which aborts on a
+collision before installing anything) and ~/.local/bin/dotprod-check.
+Needs "collision-check-lib" rendered first. Included as
+{{ includeTemplate "collision-check-gui-apps" . }}; it covers every
+[gui_apps] entry available on this profile -- the gui capability and
+display-server gates stay with the caller.
+
+What counts as a duplicate, per entry (names come from the "gui-app-spec"
+partial: its `snap`/`bins`/`other_flatpaks` overrides, else the app key):
+  Flatpak entry   the app's Snap; a native/manual copy of one of its `bins`
+                  on PATH (Snap and Flatpak export dirs excluded -- those are
+                  covered by their own probes); a native package's
+                  /usr/share/applications/<flatpak-id>.desktop; any of its
+                  `other_flatpaks`. The app's own Flatpak is NOT a collision
+                  -- that's just "already installed".
+  native entry    the app's Snap; any of its `other_flatpaks`.
+  custom script   not probed: the script owns "is it already installed?"
+                  (e.g. .scripts/gui/ghostty.sh.tmpl's `command -v ghostty`).
+*/ -}}
+# ---- [gui_apps] duplicate-install check (.chezmoitemplates/collision-check-gui-apps) ----
+# $1 = app, $2 = Snap name
+dotprod_gui_check_snap() {
+    command -v snap &>/dev/null || return 0
+    if snap list "$2" &>/dev/null; then
+        dotprod_record collision "$1: the Snap \"$2\" is already installed" "$(printf 'sudo snap remove %q' "$2")"
+    fi
+}
+
+# $1 = app, $2... = binaries a native/manual install of it puts on PATH
+dotprod_gui_check_bins() {
+    local app="$1" bin path
+    shift
+    for bin; do
+        while IFS= read -r path; do
+            case "$path" in /snap/bin/* | */flatpak/exports/bin/*) continue ;; esac
+            dotprod_remedy_for_path "$path"
+            dotprod_record collision "$app: a non-Flatpak copy is already installed: $path$(dotprod_pkg_note)" \
+                "$DOTPROD_REMEDY_CMD" "$DOTPROD_REMEDY_HINT"
+        done < <(dotprod_path_hits "$bin")
+    done
+}
+
+# $1 = app, $2 = its Flatpak ID. A native package shipping a desktop entry
+# under the Flatpak's own ID would give two same-named launchers.
+dotprod_gui_check_desktop_file() {
+    local file="/usr/share/applications/$2.desktop"
+    [[ -f "$file" && ! -L "$file" ]] || return 0
+    dotprod_remedy_for_path "$file"
+    dotprod_record collision "$1: a native package already provides $file$(dotprod_pkg_note)" \
+        "$DOTPROD_REMEDY_CMD" "$DOTPROD_REMEDY_HINT"
+}
+
+# $1 = app, $2... = Flatpak IDs that would duplicate it
+dotprod_gui_check_flatpaks() {
+    local app="$1" id installation cmd
+    shift
+    for id; do
+        while IFS= read -r installation; do
+            case "$installation" in
+            system) cmd="$(printf 'sudo flatpak uninstall --system %q' "$id")" ;;
+            user) cmd="$(printf 'flatpak uninstall --user %q' "$id")" ;;
+            *) cmd="$(printf 'flatpak uninstall %q' "$id")" ;;
+            esac
+            dotprod_record collision "$app: the Flatpak $id is already installed ($installation)" "$cmd"
+        done < <(dotprod_flatpak_installations "$id")
+    done
+}
+
+DOTPROD_GUI_SKIPPED=() # custom-script apps, for the caller's report
+
+dotprod_check_gui_apps() {
+    DOTPROD_GUI_SKIPPED=()
+{{- range $app, $entry := .gui_apps }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $entry "profile" $.profile)) "true" }}
+{{- $spec := includeTemplate "gui-app-spec" (dict "app" $app "entry" $entry "sourceDir" $.chezmoi.sourceDir) | fromJson }}
+{{- if eq $spec.method "script" }}
+    DOTPROD_GUI_SKIPPED+=("{{ $app }}")
+{{- else }}
+    dotprod_gui_check_snap "{{ $app }}" "{{ $spec.snap }}"
+{{- if eq $spec.method "flatpak" }}
+    dotprod_gui_check_bins "{{ $app }}"{{ range $spec.bins }} "{{ . }}"{{ end }}
+    dotprod_gui_check_desktop_file "{{ $app }}" "{{ $spec.flatpak }}"
+{{- end }}
+{{- if $spec.other_flatpaks }}
+    dotprod_gui_check_flatpaks "{{ $app }}"{{ range $spec.other_flatpaks }} "{{ . }}"{{ end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+}
+# ---- end [gui_apps] duplicate-install check ----

@@ -21,6 +21,20 @@ fi
 
 echo "Display server detected. Validating GUI elements..."
 
+# DUPLICATE-INSTALL GUARD: before installing anything, look for each app
+# already installed some other way (a Snap, a native package or manual
+# install, an alternate Flatpak ID) -- installing on top would leave two
+# copies, two launchers ("Double Icon Syndrome") and two sets of config.
+# Shared with ~/.local/bin/dotprod-check, which runs the same checks on
+# demand; see the "collision-check-gui-apps" partial for what each entry is
+# probed for. Like the [user_tools] guard in run_onchange_before_02, any
+# collision aborts the tier with the exact command to fix it.
+{{ includeTemplate "collision-check-lib" . }}
+{{ includeTemplate "collision-check-gui-apps" . }}
+echo "Checking [gui_apps] for existing installs from other sources..."
+dotprod_check_gui_apps
+dotprod_abort_if_collisions "gui_apps install"
+
 # Pre-pass: does any [gui_apps] entry available on this profile opt into
 # native = true? Only then do we need to resolve PKG_MANAGER / run apt-get
 # update below -- avoids a wasted apt-get update (and sudo prompt) on
@@ -56,78 +70,46 @@ if command -v flatpak &> /dev/null; then
     sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 fi
 
+# Each entry is validated and normalized by the "gui-app-spec" partial (the
+# same one the duplicate-install check above reads), which also decides the
+# install method at render time: a custom script in .scripts/gui/ always
+# wins, else native = true, else Flatpak.
 {{ range $app, $app_identifier := .gui_apps }}
 {{- if ne (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
 echo "⏭️  Skipping {{ $app }} (not in profile \"{{ $.profile }}\")."
 {{- else }}
-{{- $is_native := false }}
-{{- if kindIs "map" $app_identifier }}
-{{-   if not (hasKey $app_identifier "native") }}
-{{-     fail (printf "gui_apps.%s is a table but has no 'native' key; the only supported table form is { native = true }" $app) }}
-{{-   else if not $app_identifier.native }}
-{{-     fail (printf "gui_apps.%s sets native = false; remove native, use a plain Flatpak-ID string instead, or set native = true" $app) }}
-{{-   else }}
-{{-     $is_native = true }}
-{{-   end }}
-{{- end }}
+{{- $spec := includeTemplate "gui-app-spec" (dict "app" $app "entry" $app_identifier "sourceDir" $.chezmoi.sourceDir) | fromJson }}
+{{- if eq $spec.method "script" }}
+# 1. Custom script (always wins, whether native or Flatpak)
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/gui/{{ $app }}.sh.tmpl"
-
-# 1. Try a custom script first (always wins, whether native or Flatpak)
-if [[ -f "$SCRIPT_PATH" ]]; then
-    echo "🖥️  Running custom GUI installer for {{ $app }}..."
-    # Render the template via chezmoi first, then pipe to bash with $1 set to
-    # the resolved package name (native entries) or the raw TOML value
-    # (Flatpak entries). CHEZMOI_EXECUTABLE/CHEZMOI_SOURCE_DIR are exported
-    # by chezmoi to its scripts; reading them at runtime (not rendering the
-    # binary path in) keeps a chezmoi upgrade from changing this script's
-    # hash and re-running the whole tier.
-{{ if $is_native }}
-    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
-
+echo "🖥️  Running custom GUI installer for {{ $app }}..."
+# Render the template via chezmoi first, then pipe to bash with $1 set to
+# the package name (native entries) or the Flatpak ID / raw TOML value.
+# CHEZMOI_EXECUTABLE/CHEZMOI_SOURCE_DIR are exported by chezmoi to its scripts;
+# reading them at runtime (not rendering the binary path in) keeps a chezmoi
+# upgrade from changing this script's hash and re-running the whole tier.
+"${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $spec.script_arg }}"
+{{- else if eq $spec.method "native" }}
 # 2. Native install via the OS package manager (native = true)
-elif command -v {{ $app }} &> /dev/null; then
+if {{ range $i, $bin := $spec.bins }}{{ if $i }} || {{ end }}command -v "{{ $bin }}" &> /dev/null{{ end }}; then
     echo "✔ {{ $app }} is already installed (native)."
 else
     echo "📦 Installing {{ $app }} via native package manager..."
     $PKG_MANAGER "{{ $app }}"
 fi
-{{ else }}
-    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
-
-# 2. Fallback strictly to Flatpak using the TOML value as the ID
-elif command -v flatpak &> /dev/null; then
-{{- /* SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers.
-       The identifier is a render-time constant, so check it here rather than
-       rendering a `[[ "<constant>" == ppa:* ]]` test into the script. */}}
-{{- if or (hasPrefix "ppa:" $app_identifier) (contains "/" $app_identifier) }}
-    echo "❌ Error: Missing custom installer script for {{ $app }}."
-    echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
-    exit 1
-{{- end }}
-
+{{- else }}
+# 3. Flatpak from Flathub
+if command -v flatpak &> /dev/null; then
     echo "📦 Checking Flatpak installation for {{ $app }}..."
-
-    # DUPLICATE-INSTALL GUARD: if a native package already ships a desktop
-    # entry under this exact Flatpak app ID, installing the Flatpak on top
-    # would silently create two colliding "{{ $app }}" launchers (Double Icon
-    # Syndrome) instead of one obvious winner.
-    NATIVE_DESKTOP_FILE="/usr/share/applications/{{ $app_identifier }}.desktop"
-    if [[ -f "$NATIVE_DESKTOP_FILE" && ! -L "$NATIVE_DESKTOP_FILE" ]]; then
-        echo "❌ Error: A native package already provides {{ $app }} ($NATIVE_DESKTOP_FILE exists)."
-        echo "Installing the Flatpak ({{ $app_identifier }}) on top would duplicate it."
-        echo "Either uninstall the native package, or remove '{{ $app }}' from [gui_apps] in .chezmoidata.toml."
-        exit 1
-    fi
-
-    if ! flatpak list | grep -q "{{ $app_identifier }}"; then
-        echo "Installing {{ $app_identifier }}..."
-        sudo flatpak install -y flathub "{{ $app_identifier }}"
+    if ! flatpak list --app --columns=application | grep -qxF "{{ $spec.flatpak }}"; then
+        echo "Installing {{ $spec.flatpak }}..."
+        sudo flatpak install -y flathub "{{ $spec.flatpak }}"
     else
         echo "✔ {{ $app }} is already installed."
     fi
 else
     echo "⚠️  Cannot install {{ $app }}: Flatpak is missing and no custom script found."
 fi
-{{ end }}
+{{- end }}
 {{- end }}
 {{ end }}

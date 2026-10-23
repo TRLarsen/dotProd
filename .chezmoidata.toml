@@ -149,12 +149,37 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
 # ===============================================================
+# Format is "<app>" = "<Flatpak ID>" (installed from Flathub), or a table:
+#   { flatpak = "<Flatpak ID>", ... }  same, plus the overrides below
+#   { native = true, ... }             OS package named <app> (apt/dnf/pacman),
+#                                      for apps with no usable Flatpak
+# An app with a .scripts/gui/<app>.sh.tmpl is installed by that script
+# instead (value passed as $1; "custom_script" if it's otherwise unused).
+#
+# Before installing anything, the tier aborts if an app is already installed
+# some OTHER way (Snap, native package / manual install, another Flatpak ID),
+# which would otherwise leave two copies with separate configs -- same guard
+# as [user_tools]' PATH-collision check, also runnable on demand as
+# `dotprod-check`. The probes default to the app key; when the app's name
+# differs under another install method, override it per entry (table form):
+#   snap = "<snap name>"                   default: the key
+#   bins = ["<binary>", ...]               what a native/manual install puts
+#                                          on PATH; default: [the key]
+#   other_flatpaks = ["<Flatpak ID>", ...] other Flatpak IDs of the same app
+#                                          (e.g. a pre-rename ID); default: none
+# Custom-script apps aren't probed (their script checks for itself). See
+# .chezmoitemplates/gui-app-spec for the exact validation rules.
 [gui_apps]
 ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh.tmpl (official mkasberg/ghostty-ubuntu installer)
-brave = "com.brave.Browser"
+# Brave's own .deb/.rpm installs `brave-browser` (Arch's brave-bin: `brave`);
+# its Snap is "brave", which the default already covers.
+brave = { flatpak = "com.brave.Browser", bins = ["brave-browser", "brave"] }
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
-zen = "app.zen_browser.zen"  # Flatpak (official Flathub build). See .scripts/personal/zen/configure.sh.tmpl for opt-in prefs/extensions sync.
+# Flatpak (official Flathub build). Flathub renamed it from
+# io.github.zen_browser.zen; an install under the old ID would be a second
+# copy. See .scripts/personal/zen/configure.sh.tmpl for opt-in prefs/extensions sync.
+zen = { flatpak = "app.zen_browser.zen", other_flatpaks = ["io.github.zen_browser.zen"] }
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)

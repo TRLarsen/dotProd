@@ -185,21 +185,51 @@ for pkg, entry in user_tools.items():
             check(not missing, f"[user_tools].{pkg!r}: available on {missing} where its prerequisite {prereq} is not")
 
 # --- [gui_apps] --------------------------------------------------------------
+# Mirror of .chezmoitemplates/gui-app-spec (which fails the render on any of
+# these too); checked here so a bad entry fails CI before anyone applies it.
+FLATPAK_ID = re.compile(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2,}")
+PLAIN_NAME = re.compile(r"[A-Za-z0-9._+-]+")
+GUI_TABLE_KEYS = {"flatpak", "native", "snap", "bins", "other_flatpaks", "profiles"}
+GUI_PROBE_KEYS = {"snap", "bins", "other_flatpaks"}
 for app, ident in DATA.get("gui_apps", {}).items():
     where = f"[gui_apps].{app}"
     check_profiles_key(where, ident)
+    check(PLAIN_NAME.fullmatch(app) is not None, f"{where}: app key must be a plain name (it's used as a package/script/binary name)")
     script = SCRIPTS / "gui" / f"{app}.sh.tmpl"
     if isinstance(ident, dict):
-        check(ident.get("native") is True and set(ident) <= {"native", "profiles"},
-              f"{where}: the only supported table form is {{ native = true }} (+ optional profiles), got {ident!r}")
+        check(set(ident) <= GUI_TABLE_KEYS, f"{where}: unknown keys {sorted(set(ident) - GUI_TABLE_KEYS)}")
+        check(("flatpak" in ident) != ("native" in ident),
+              f"{where}: a table needs exactly one of flatpak = \"<id>\" or native = true, got {ident!r}")
+        if "native" in ident:
+            check(ident["native"] is True, f"{where}: native must be true (use a Flatpak ID instead of native = false)")
+        if "flatpak" in ident:
+            check(isinstance(ident["flatpak"], str) and FLATPAK_ID.fullmatch(ident["flatpak"]) is not None,
+                  f"{where}: flatpak = {ident['flatpak']!r} doesn't look like a Flatpak app ID (reverse-DNS)")
+        if "snap" in ident:
+            check(isinstance(ident["snap"], str) and re.fullmatch(r"[a-z0-9][a-z0-9-]*", ident["snap"]) is not None,
+                  f"{where}: snap = {ident['snap']!r} is not a valid Snap name")
+        if "bins" in ident:
+            b = ident["bins"]
+            check(isinstance(b, list) and len(b) > 0 and all(isinstance(x, str) and PLAIN_NAME.fullmatch(x) for x in b),
+                  f"{where}: bins must be a non-empty list of plain binary names, got {b!r}")
+        if "other_flatpaks" in ident:
+            o = ident["other_flatpaks"]
+            check(isinstance(o, list) and all(isinstance(x, str) and FLATPAK_ID.fullmatch(x) for x in o),
+                  f"{where}: other_flatpaks must be a list of Flatpak app IDs, got {o!r}")
+            check(not isinstance(o, list) or ident.get("flatpak") not in o,
+                  f"{where}: other_flatpaks lists the app's own Flatpak ID")
+        if script.is_file():
+            # Custom-script apps aren't probed, so these would be silently unused.
+            check(not (set(ident) & GUI_PROBE_KEYS),
+                  f"{where}: sets {sorted(set(ident) & GUI_PROBE_KEYS)}, which custom-script apps ignore")
     elif isinstance(ident, str):
         if ident == "custom_script" or ident.startswith("ppa:") or "/" in ident:
             check(script.is_file(), f"{where}: {ident!r} is not a Flatpak ID, so .scripts/gui/{app}.sh.tmpl must exist")
-        else:
-            check(re.fullmatch(r"[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+){2,}", ident) is not None,
+        elif not script.is_file():
+            check(FLATPAK_ID.fullmatch(ident) is not None,
                   f"{where}: {ident!r} doesn't look like a Flatpak app ID (reverse-DNS)")
     else:
-        errors.append(f"{where}: must be a Flatpak ID string or {{ native = true }}, got {ident!r}")
+        errors.append(f"{where}: must be a Flatpak ID string or a {{ flatpak = ... }} / {{ native = true }} table, got {ident!r}")
 for script in sorted((SCRIPTS / "gui").glob("*")):
     # The dispatcher only ever looks for <app>.sh.tmpl.
     check(script.name.endswith(".sh.tmpl") and script.name.removesuffix(".sh.tmpl") in DATA.get("gui_apps", {}),
