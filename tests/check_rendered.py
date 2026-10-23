@@ -130,12 +130,21 @@ for case in cases:
                 check(f'SCRIPT_PATH="{SOURCE_DIR}/.scripts/gui/{app}.sh.tmpl"' in gui,
                       f"{where} 03 does not handle {app}")
 
-    # Nested renders must call the running chezmoi binary, not whatever
-    # `chezmoi` is on PATH: after README's bootstrap ~/.local/bin usually
-    # isn't on PATH yet.
+    # Nested renders must call the running chezmoi binary with this source
+    # dir -- via the CHEZMOI_* env chezmoi exports to scripts -- not whatever
+    # `chezmoi` is on PATH (after README's bootstrap ~/.local/bin usually
+    # isn't on PATH yet). And the binary's path must not be rendered in: it
+    # changes with every versioned (mise/brew/aqua) chezmoi upgrade, which
+    # would change 03's hash and re-run the whole GUI tier.
+    nested = f'"${{CHEZMOI_EXECUTABLE:-chezmoi}}" execute-template --source "${{CHEZMOI_SOURCE_DIR:-{SOURCE_DIR}}}" <'
     for rel in ("run_onchange_before_03_install_gui_apps.sh", "run_after_20_configure_personal.sh"):
-        check(not re.search(r"^\s*chezmoi ", read(rel), re.M),
-              f"{where} {rel} calls a bare `chezmoi` (use {{{{ .chezmoi.executable }}}})")
+        text = read(rel)
+        calls = [l.strip() for l in text.splitlines()
+                 if "execute-template" in l and not l.lstrip().startswith("#")]
+        bad = [c for c in calls if not c.startswith(nested)]
+        check(not bad, f"{where} {rel}: nested render not of the form {nested!r}: {bad}")
+        check(not re.search(r"^\s*chezmoi ", text, re.M), f"{where} {rel} calls a bare `chezmoi`")
+        check("/opt/ci-bin/chezmoi" not in text, f"{where} {rel} has the chezmoi binary path rendered in")
 
     # --- [personal] dispatcher
     personal = read("run_after_20_configure_personal.sh")

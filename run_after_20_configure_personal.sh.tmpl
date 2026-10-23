@@ -45,7 +45,11 @@ echo "⏭️  Skipping {{ $app }} (not available on profile \"{{ $.profile }}\")
 SCRIPT_PATH="{{ $.chezmoi.sourceDir }}/.scripts/personal/{{ $app }}/configure.sh.tmpl"
 if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🔧 Applying personal configuration for {{ $app }}..."
-    "{{ $.chezmoi.executable }}" execute-template <"$SCRIPT_PATH" | bash
+    # CHEZMOI_EXECUTABLE/CHEZMOI_SOURCE_DIR are exported by chezmoi to every
+    # script it runs: the running binary (which may not be on PATH yet right
+    # after the README bootstrap) and this source dir. Read at runtime, not
+    # rendered in, so upgrading/moving chezmoi doesn't change this script.
+    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" <"$SCRIPT_PATH" | bash
 else
     echo "⚠️  [personal.{{ $app }}] is active but no script found at .scripts/personal/{{ $app }}/configure.sh.tmpl" >&2
 fi
