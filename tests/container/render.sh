@@ -96,6 +96,45 @@ for profile in "${PROFILES[@]}"; do
     done
 done
 
+# Every package the rendered dispatchers would hand to the native package
+# manager (system_tools, and native = true gui_apps) must exist in this
+# distro's repos -- otherwise `chezmoi apply` dies with "Unable to locate
+# package" on exactly the sudo-capable profiles. Tools installed by a
+# .scripts/daemons script (from their own repo) aren't in this list.
+echo "--- $DISTRO / native packages exist in the distro repos"
+pkgs=()
+for case_dir in "$out"/*/; do
+    for f in "$case_dir"run_onchange_before_01_install_system_tools.sh "$case_dir"run_onchange_before_03_install_gui_apps.sh; do
+        # shellcheck disable=SC2016 # matching the literal text `$PKG_MANAGER` in the rendered script
+        mapfile -t found < <(sed -nE 's/^[[:space:]]*\$PKG_MANAGER "([^"]+)"[[:space:]]*$/\1/p' "$f")
+        pkgs+=("${found[@]}")
+    done
+done
+mapfile -t pkgs < <(printf '%s\n' "${pkgs[@]}" | sed '/^$/d' | sort -u)
+if [[ ${#pkgs[@]} -eq 0 ]]; then
+    fail "found no \$PKG_MANAGER installs in any rendered profile (expected some on sudo profiles)"
+else
+    echo "checking ${#pkgs[@]} package(s): ${pkgs[*]}"
+    case "$DISTRO" in
+    fedora)
+        dnf -q makecache >/dev/null
+        # --whatprovides, like `dnf install` itself: Fedora has no
+        # package *named* clangd, clang-tools-extra provides it.
+        have() { [[ -n "$(dnf -q repoquery --whatprovides "$1" 2>/dev/null)" ]]; }
+        ;;
+    ubuntu | debian)
+        apt-get update -qq >/dev/null
+        # A simulated install resolves exactly as `apt-get install` would
+        # (virtual packages, dependencies) without installing anything.
+        have() { apt-get install -s -qq --no-install-recommends "$1" &>/dev/null; }
+        ;;
+    *) fail "no package-existence check for distro $DISTRO" ;;
+    esac
+    for p in "${pkgs[@]}"; do
+        have "$p" || fail "package \"$p\" is not available in the $DISTRO repos"
+    done
+fi
+
 # A machine whose stored profile isn't a [profiles] key must fail at render
 # time in every install-tier dispatcher, rather than guessing.
 echo "--- $DISTRO / profile=bogus (must fail loudly)"
