@@ -12,5 +12,10 @@ LICENSE
 # ignores every dot-prefixed source path that isn't a .chezmoi* file.)
 tests
 
+# Machine-local zsh overrides, sourced at the end of ~/.zshrc. Never part
+# of the shared state: ignoring it also makes an accidental
+# `chezmoi add ~/.zshrc.local` a no-op instead of committing it to the repo.
+.zshrc.local
+
 # Reference file, not meant to be deployed to $HOME.
 prefs.js

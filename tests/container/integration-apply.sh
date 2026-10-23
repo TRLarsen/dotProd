@@ -8,6 +8,8 @@
 #    the init prompts answered non-interactively.
 # 2. Checks the result: tools installed, a second apply is clean, and an
 #    interactive zsh starts without writing anything to stderr.
+# 3. Checks the machine-local ~/.zshrc.local hook: sourced last (so it can
+#    override the shared .zshrc), and never touched or adopted by chezmoi.
 set -euo pipefail
 profile="${1:?usage: integration-apply.sh <profile>}"
 : "${CHEZMOI_VERSION:?}"
@@ -66,13 +68,16 @@ step "A second chezmoi apply succeeds and leaves nothing to change"
 # setup noise (sheldon cloning its plugins on first use), so it only has to
 # succeed; the second start is the steady state every later shell sees and
 # must write nothing to stderr.
+# $1 = stderr file, $2 = command for zsh -c (default: exit; must not
+# contain single quotes).
 zsh_start() {
-    script -qec "env ZELLIJ=0 TERM=xterm-256color zsh -i -c exit 2>'$1'" /dev/null </dev/null
+    script -qec "env ZELLIJ=0 TERM=xterm-256color zsh -i -c '${2:-exit}' 2>'$1'" /dev/null </dev/null
 }
 step "Interactive zsh, first start (one-time setup output allowed)"
 zsh_start "$HOME/zsh-first.err" || fail "first interactive zsh exited non-zero: $(cat "$HOME/zsh-first.err")"
 sed 's/^/  stderr: /' "$HOME/zsh-first.err"
 
+# No ~/.zshrc.local exists yet, so this also proves its absence is silent.
 step "Interactive zsh, second start (must print nothing to stderr)"
 zsh_start "$HOME/zsh.err" || fail "interactive zsh exited non-zero: $(cat "$HOME/zsh.err")"
 if [[ -s "$HOME/zsh.err" ]]; then
@@ -81,3 +86,36 @@ if [[ -s "$HOME/zsh.err" ]]; then
     fail "interactive zsh startup is not clean on profile=$profile"
 fi
 echo "ok: interactive zsh startup is clean"
+
+step "Machine-local ~/.zshrc.local is sourced last and left alone by chezmoi"
+# Overrides EDITOR, which the shared .zshrc sets unconditionally, so the
+# value seen in the shell proves the local file ran after it.
+cat >"$HOME/.zshrc.local" <<'EOF'
+export EDITOR=dotprod-local-editor
+dotprod_local_marker=sourced
+EOF
+local_orig="$(<"$HOME/.zshrc.local")"
+# shellcheck disable=SC2016 # Expanded by the inner zsh, not here.
+zsh_start "$HOME/zsh-local.err" 'print -r -- "$dotprod_local_marker:$EDITOR" >"$HOME/zsh-local.out"' ||
+    fail "interactive zsh exited non-zero with ~/.zshrc.local present: $(cat "$HOME/zsh-local.err")"
+if [[ -s "$HOME/zsh-local.err" ]]; then
+    sed 's/^/  | /' "$HOME/zsh-local.err" >&2
+    fail "interactive zsh wrote to stderr with ~/.zshrc.local present"
+fi
+got="$(cat "$HOME/zsh-local.out")"
+[[ "$got" == "sourced:dotprod-local-editor" ]] ||
+    fail "expected ~/.zshrc.local to be sourced after the shared .zshrc (marker:EDITOR = 'sourced:dotprod-local-editor', got '$got')"
+echo "ok: sourced, and its EDITOR overrides the shared one"
+
+"$chezmoi" apply --no-tty
+# (No cmp/diff: Fedora's baseline has no diffutils.)
+[[ -f "$HOME/.zshrc.local" && "$(<"$HOME/.zshrc.local")" == "$local_orig" ]] ||
+    fail "chezmoi apply modified or removed ~/.zshrc.local"
+if "$chezmoi" managed | grep -qxF .zshrc.local; then fail "chezmoi manages ~/.zshrc.local"; fi
+# .chezmoiignore lists it, so even an explicit `chezmoi add` must not pull
+# it into the (shared) source state.
+"$chezmoi" add --no-tty "$HOME/.zshrc.local" 2>&1 | sed 's/^/  chezmoi add: /'
+if find "$src" -name '*zshrc.local*' | grep -q .; then
+    fail "chezmoi add copied ~/.zshrc.local into the source state: $(find "$src" -name '*zshrc.local*')"
+fi
+echo "ok: chezmoi apply left it unchanged, and it is neither managed nor addable"
