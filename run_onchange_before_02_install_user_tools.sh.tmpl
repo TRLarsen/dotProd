@@ -31,37 +31,18 @@ echo "⏭️  Skipping {{ $tool }} (not in profile \"{{ $.profile }}\")."
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 
 # 2. COLLISION DETECTION HEALTH CHECK
-# Each [user_tools] value is either a plain binary-name string (available on
-# every profile) or a table `{ bin = "...", profiles = [...] }` for entries
-# that need restricting -- mirrors the flat-string-vs-table duality already
-# used in [system_tools]. Only tools available on this profile go into the
-# collision array, matching what private_dot_config/mise/config.toml.tmpl
-# will actually declare in [tools].
-MISE_TOOLS=(
-  {{- range $package, $cfg := .user_tools }}
-  {{- if eq (includeTemplate "entry-in-profile" (dict "entry" $cfg "profile" $.profile)) "true" }}
-  {{- $binary := $cfg }}
-  {{- if kindIs "map" $cfg }}{{ $binary = $cfg.bin }}{{ end }}
-  "{{ $binary }}"
-  {{- end }}
-  {{- end }}
-)
-
-COLLISIONS=0
-for tool in "${MISE_TOOLS[@]}"; do
-  if command -v "$tool" &>/dev/null; then
-    TOOL_PATH=$(command -v "$tool")
-    if [[ "$TOOL_PATH" != *".local/share/mise"* ]] && [[ "$TOOL_PATH" != *".local/bin/mise"* ]] && [[ "$TOOL_PATH" != *".cargo/bin"* ]]; then
-      echo "  ⚠️  [COLLISION] External binary detected: $tool ($TOOL_PATH)"
-      COLLISIONS=$((COLLISIONS + 1))
-    fi
-  fi
-done
-
-if [ "$COLLISIONS" -gt 0 ]; then
-  echo "❌ FATAL: Environment initialization aborted due to path conflicts."
-  exit 1
-fi
+# Aborts before mise installs anything if a [user_tools] binary for this
+# profile is already on PATH from somewhere other than mise (e.g. a distro
+# package) -- installing anyway would leave two copies, with whichever comes
+# first on PATH silently winning. The check itself lives in shared partials
+# so ~/.local/bin/dotprod-check runs exactly the same code on demand; see
+# .chezmoitemplates/collision-check-user-tools for what counts as a
+# collision.
+{{ includeTemplate "collision-check-lib" . }}
+{{ includeTemplate "collision-check-user-tools" . }}
+echo "Checking [user_tools] for PATH collisions..."
+dotprod_check_user_tools
+dotprod_abort_if_collisions "Environment initialization"
 
 # 3. MISE RUNTIME ENGINE
 if ! command -v mise &>/dev/null; then

@@ -1,0 +1,160 @@
+{{- /*
+Bash helpers shared by every collision check: rendered into
+run_onchange_before_02 (with "collision-check-user-tools"),
+run_onchange_before_03 (with "collision-check-gui-apps") and
+~/.local/bin/dotprod-check (with both), so the automated guards and the
+manual check run literally the same code. Rendered at the top level of a
+script (not inside a function); expects `set -euo pipefail` and bash >= 4.4.
+
+Check functions only RECORD findings (dotprod_record); the caller decides
+what to do with them -- the install tiers abort (dotprod_abort_if_collisions),
+dotprod-check prints a report and exits nonzero. Nothing here removes
+anything: each finding carries the exact command that would fix it, printed
+as a "fix:" line, and only `dotprod-check --fix` (interactive, asks before
+every single command, never run by chezmoi) may run them.
+
+Included as {{ includeTemplate "collision-check-lib" . }} -- it only reads
+.chezmoi.osRelease.id, to pick the package-ownership lookup for this distro.
+*/ -}}
+# ---- collision-check helpers (.chezmoitemplates/collision-check-lib) ----
+DOTPROD_COLLISIONS=0
+DOTPROD_WARNINGS=0
+DOTPROD_FIX_CMDS=() # remediation commands (shell-quoted), for dotprod-check --fix
+DOTPROD_FIX_DESCS=()
+
+dotprod_reset_findings() {
+    DOTPROD_COLLISIONS=0
+    DOTPROD_WARNINGS=0
+    DOTPROD_FIX_CMDS=()
+    DOTPROD_FIX_DESCS=()
+}
+
+# Records and prints one finding.
+#   $1 = collision (blocks the install tier) | warning (reported only)
+#   $2 = description
+#   $3 = command that removes the duplicate, already shell-quoted, or ""
+#   $4 = manual hint, for when there's no command to suggest
+dotprod_record() {
+    local severity="$1" msg="$2" cmd="${3:-}" hint="${4:-}" c
+    if [[ "$severity" == collision ]]; then
+        echo "  ⚠️  [COLLISION] $msg"
+        DOTPROD_COLLISIONS=$((DOTPROD_COLLISIONS + 1))
+    else
+        echo "  ℹ️  [SHADOWED] $msg"
+        DOTPROD_WARNINGS=$((DOTPROD_WARNINGS + 1))
+    fi
+    if [[ -n "$cmd" ]]; then
+        echo "      fix: $cmd"
+        # Two findings can share one fix (brave-browser + brave from one package).
+        for c in "${DOTPROD_FIX_CMDS[@]}"; do [[ "$c" == "$cmd" ]] && return 0; done
+        DOTPROD_FIX_CMDS+=("$cmd")
+        DOTPROD_FIX_DESCS+=("$msg")
+    elif [[ -n "$hint" ]]; then
+        echo "      fix: $hint"
+    fi
+}
+
+# Prints every distinct copy of program $1 on PATH, in PATH order. Copies
+# reached twice through a symlinked PATH directory (e.g. /bin -> /usr/bin on
+# merged-/usr distros) are listed once.
+dotprod_path_hits() {
+    local path real seen=" "
+    while IFS= read -r path; do
+        real="$(readlink -f "$path" 2>/dev/null)" || real="$path"
+        [[ "$seen" == *" $real "* ]] && continue
+        seen+="$real "
+        echo "$path"
+    done < <(type -ap "$1" 2>/dev/null || true)
+}
+
+# Prints the name of the system package that owns file $1, or fails. Tries
+# the path with its directory symlinks resolved and its merged-/usr twin
+# (packages may list /bin/x for what PATH finds as /usr/bin/x), but never
+# the file's own symlink target -- an unowned symlink must not be blamed on
+# whatever package owns the file it points at.
+dotprod_owner_of() {
+    local path="$1" dir candidates=() c pkg
+    dir="$(readlink -f "$(dirname "$path")" 2>/dev/null)" || dir="$(dirname "$path")"
+    candidates=("$path" "$dir/$(basename "$path")")
+    case "$dir" in /usr/bin | /usr/sbin) candidates+=("${dir#/usr}/$(basename "$path")") ;; esac
+    for c in "${candidates[@]}"; do
+{{- if eq .chezmoi.osRelease.id "fedora" }}
+        command -v rpm &>/dev/null || return 1
+        if pkg="$(rpm -qf --qf '%{NAME}\n' "$c" 2>/dev/null)"; then
+            echo "${pkg%%$'\n'*}"
+            return 0
+        fi
+{{- else if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
+        command -v dpkg-query &>/dev/null || return 1
+        # "pkg[:arch]: /path" (or "pkg1, pkg2: /path"); "diversion by ..." lines aren't owners.
+        pkg="$(dpkg-query -S "$c" 2>/dev/null | grep -v '^diversion' | head -n1 | sed 's/: .*//; s/,.*//')" || true
+        if [[ -n "$pkg" ]]; then
+            echo "$pkg"
+            return 0
+        fi
+{{- else if eq .chezmoi.osRelease.id "arch" }}
+        command -v pacman &>/dev/null || return 1
+        if pkg="$(pacman -Qqo "$c" 2>/dev/null)"; then
+            echo "${pkg%%$'\n'*}"
+            return 0
+        fi
+{{- else }}
+        : "$c" # no package-ownership lookup for {{ .chezmoi.osRelease.id }}
+        return 1
+{{- end }}
+    done
+    return 1
+}
+
+# Works out how to remove the copy of a program found at $1 and stores it in
+# DOTPROD_REMEDY_CMD (a removal command, shell-quoted) or, when no package
+# manager owns it, DOTPROD_REMEDY_HINT. DOTPROD_REMEDY_PKG is the owning
+# package (or "") for the caller's message.
+dotprod_remedy_for_path() {
+    local path="$1" name
+    DOTPROD_REMEDY_CMD="" DOTPROD_REMEDY_HINT="" DOTPROD_REMEDY_PKG=""
+    if [[ "$path" == /snap/bin/* ]]; then
+        name="$(basename "$path")" # /snap/bin/<snap> or /snap/bin/<snap>.<app>
+        DOTPROD_REMEDY_PKG="snap ${name%%.*}"
+        DOTPROD_REMEDY_CMD="$(printf 'sudo snap remove %q' "${name%%.*}")"
+    elif DOTPROD_REMEDY_PKG="$(dotprod_owner_of "$path")"; then
+{{- if eq .chezmoi.osRelease.id "fedora" }}
+        DOTPROD_REMEDY_CMD="$(printf 'sudo dnf remove %q' "$DOTPROD_REMEDY_PKG")"
+{{- else if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
+        DOTPROD_REMEDY_CMD="$(printf 'sudo apt-get remove %q' "$DOTPROD_REMEDY_PKG")"
+{{- else if eq .chezmoi.osRelease.id "arch" }}
+        DOTPROD_REMEDY_CMD="$(printf 'sudo pacman -R %q' "$DOTPROD_REMEDY_PKG")"
+{{- else }}
+        DOTPROD_REMEDY_HINT="remove the $DOTPROD_REMEDY_PKG package that provides $path"
+{{- end }}
+    else
+        DOTPROD_REMEDY_PKG=""
+        DOTPROD_REMEDY_HINT="$path isn't owned by a system package; uninstall it with whatever put it there (cargo uninstall, pipx uninstall, npm rm -g, an installer's uninstall script, ...) or delete it"
+    fi
+}
+
+# " (package foo)" for messages, or "".
+dotprod_pkg_note() {
+    [[ -n "$DOTPROD_REMEDY_PKG" ]] && printf ' (package %s)' "$DOTPROD_REMEDY_PKG"
+    return 0
+}
+
+# Prints the installation ("system" or "user") of each copy of Flatpak app
+# $1 that's installed; prints nothing if none is, or flatpak isn't present.
+dotprod_flatpak_installations() {
+    command -v flatpak &>/dev/null || return 0
+    flatpak list --app --columns=application,installation 2>/dev/null | awk -v id="$1" '$1 == id { print $2 }' || true
+}
+
+# Install-tier epilogue: no-op if nothing collided, else explains and exits 1.
+dotprod_abort_if_collisions() {
+    ((DOTPROD_COLLISIONS == 0)) && return 0
+    echo "❌ FATAL: $1 aborted: $DOTPROD_COLLISIONS collision(s) with software installed outside this repo (listed above)."
+    echo "   Remove each duplicate (its 'fix:' line is the exact command), or drop the entry from"
+    echo "   .chezmoidata.toml, then re-run 'chezmoi apply'. Nothing has been removed automatically."
+    echo "   ~/.local/bin/dotprod-check re-runs these checks without installing anything (deploy it"
+    echo "   alone with 'chezmoi apply ~/.local/bin/dotprod-check'); 'dotprod-check --fix' offers to"
+    echo "   run each fix, asking before every one."
+    exit 1
+}
+# ---- end collision-check helpers ----

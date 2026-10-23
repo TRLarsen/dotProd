@@ -83,10 +83,14 @@ are all prefixed by `run_[onchange_before/after]` and suffixed by `.sh[.tmpl]`.
   script runs a pre-flight collision detection scan. If legacy binaries (e.g.,
   an `apt` installed version of a tool `mise` is trying to manage) are found in
   the `$PATH`, the pipeline halts to prevent environment corruption.
+  The same check is available on demand as `dotprod-check` (see
+  [Collision checks](#collision-checks)).
 - **`03_install_gui_apps`**: Detects if a display server (Wayland/X11) is
   active. If true, configures Flathub and provisions desktop applications
   (via Flatpak, a custom script, or natively via the OS package manager for
-  `{ native = true }` entries).
+  `{ native = true }` entries). Before installing anything it aborts if an
+  app is already installed another way (Snap, native package, alternate
+  Flatpak ID), instead of installing a second copy.
 - **`20_configure_personal`**: (Run-After Phase) Generic dispatcher for the
   `[personal]` layer — discovers and runs every
   `.scripts/personal/<app>/configure.sh.tmpl` on disk (e.g. Zen's local
@@ -97,6 +101,30 @@ are all prefixed by `run_[onchange_before/after]` and suffixed by `.sh[.tmpl]`.
   symlinking system-installed debuggers (LLDB) into the user paths expected by
   terminal editors. This script is currently not standardized and must be
   completely custom.
+
+### Collision checks
+
+Both install tiers refuse to install on top of software that came from
+somewhere else, and `~/.local/bin/dotprod-check` runs the same checks on
+demand, installing nothing:
+
+```sh
+chezmoi apply ~/.local/bin/dotprod-check   # deploy just the checker (runs no installer)
+dotprod-check                              # report; exit 1 on collisions
+dotprod-check --fix                        # interactive: asks y/N before every removal
+```
+
+It checks `[user_tools]` binaries found on `$PATH` outside mise, and
+`[gui_apps]` entries already present as a Snap, a native package/binary, or an
+alternate Flatpak ID. Every finding prints the exact removal command
+(`dnf remove` / `apt-get remove` / `pacman -R` for the owning package,
+`snap remove`, `flatpak uninstall`). Nothing is ever removed automatically;
+`--fix` needs a terminal, confirms each command, and is never run by chezmoi.
+Per-app names that differ between install methods can be overridden in
+`[gui_apps]` (`snap`, `bins`, `other_flatpaks`; see the comments there).
+`native = true` entries are probed for a Snap of the same name by default but
+not for a Flatpak of the same app (no ID can be derived from the key); set
+`other_flatpaks` on the entry to opt in.
 
 ## 🛠️ Configuration (`.chezmoidata.toml`)
 

@@ -181,6 +181,28 @@ the whole pipeline** rather than silently shadowing it. When adding a tool to
 `[user_tools]`, keep this in mind — don't also install it via
 `[system_tools]`.
 
+The check code lives in `.chezmoitemplates/collision-check-lib` (helpers),
+`collision-check-user-tools` and `collision-check-gui-apps`, included into the
+02 and 03 tiers **and** into `private_dot_local/bin/executable_dotprod-check.tmpl`
+(`~/.local/bin/dotprod-check`), so tiers and the manual command run identical
+code (tests/check_rendered.py asserts the rendered blocks are byte-identical).
+Partials, not a deployed script, because `run_onchange_before_*` runs before
+files deploy. Checks only *record* findings; tiers abort via
+`dotprod_abort_if_collisions`, `dotprod-check` reports and exits 1. Each finding
+carries its exact removal command; nothing is auto-removed, and `--fix` is
+interactive (TTY, y/N per command) and refuses under chezmoi.
+
+The `[gui_apps]` tier (03) runs the GUI half before installing: a Flatpak entry
+collides with its Snap, a non-Snap/non-Flatpak binary on `$PATH`, a native
+`/usr/share/applications/<flatpak-id>.desktop`, or an `other_flatpaks` ID; a
+`native = true` entry with its Snap (default: the key) only; it gets no
+Flatpak probe by default because no Flatpak ID can be derived from the key, so
+opt in with `other_flatpaks` on the entry; custom-script entries
+are not probed. Entries are validated/normalized by the `gui-app-spec` partial:
+a plain Flatpak-ID string, or a table with exactly one of `flatpak = "<id>"` /
+`native = true`, plus optional `snap`, `bins`, `other_flatpaks`, `profiles`
+(defaults derive from the app key; unknown keys fail the render).
+
 ## Extending the system
 
 **Standard package** (apt/dnf/pacman package with no special install logic,
@@ -263,6 +285,9 @@ render time).
 
 ## Useful local commands
 
+- `dotprod-check [--fix]` — report (and with `--fix`, interactively offer to
+  remove) installs that collide with `[user_tools]`/`[gui_apps]`; installs nothing.
+  Deploy alone with `chezmoi apply ~/.local/bin/dotprod-check`.
 - `chezmoi diff` — preview what `apply` would change against `$HOME`, without
   touching anything.
 - `chezmoi apply -v` — apply the source state, verbose.

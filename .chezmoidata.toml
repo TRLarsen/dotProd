@@ -149,12 +149,43 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 # ===============================================================
 # 4. DESKTOP/GUI LAYER (Flatpak IDs or Script Arguments)
 # ===============================================================
+# Format is "<app>" = "<Flatpak ID>" (installed from Flathub), or a table:
+#   { flatpak = "<Flatpak ID>", ... }  same, plus the overrides below
+#   { native = true, ... }             OS package named <app> (apt/dnf/pacman),
+#                                      for apps with no usable Flatpak
+# An app with a .scripts/gui/<app>.sh.tmpl is installed by that script
+# instead (value passed as $1; "custom_script" if it's otherwise unused).
+#
+# Before installing anything, the tier aborts if an app is already installed
+# some OTHER way (Snap, native package / manual install, another Flatpak ID),
+# which would otherwise leave two copies with separate configs -- same guard
+# as [user_tools]' PATH-collision check, also runnable on demand as
+# `dotprod-check`. The probes default to the app key; when the app's name
+# differs under another install method, override it per entry (table form):
+#   snap = "<snap name>"                   default: the key
+#   bins = ["<binary>", ...]               what a native/manual install puts
+#                                          on PATH; default: [the key]
+#   other_flatpaks = ["<Flatpak ID>", ...] other Flatpak IDs of the same app
+#                                          (e.g. a pre-rename ID); default: none
+#                                          (illustrative, not a real entry:
+#                                          myapp = { flatpak = "org.new.MyApp",
+#                                          other_flatpaks = ["org.old.MyApp"] })
+# `native = true` entries have no Flatpak ID to derive, so they get the Snap
+# probe (default: the key) but NO Flatpak probe unless you set other_flatpaks.
+# Custom-script apps aren't probed (their script checks for itself). See
+# .chezmoitemplates/gui-app-spec for the exact validation rules.
 [gui_apps]
 ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh.tmpl (official mkasberg/ghostty-ubuntu installer)
-brave = "com.brave.Browser"
+# Brave's own .deb/.rpm install /usr/bin/brave-browser and
+# /usr/bin/brave-browser-stable (checked against Brave's rpm repo); its Snap
+# is "brave", which the default already covers. Arch's AUR brave-bin may
+# ship plain `brave` instead; unverified, so it isn't listed.
+brave = { flatpak = "com.brave.Browser", bins = ["brave-browser", "brave-browser-stable"] }
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
-zen = "app.zen_browser.zen"  # Flatpak (official Flathub build). See .scripts/personal/zen/configure.sh.tmpl for opt-in prefs/extensions sync.
+# Flatpak (official Flathub build). See .scripts/personal/zen/configure.sh.tmpl
+# for opt-in prefs/extensions sync.
+zen = "app.zen_browser.zen"
 
 # ===============================================================
 # 5. PERSONAL LAYER (Optional, per-machine opt-in)

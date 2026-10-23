@@ -24,7 +24,7 @@ for profile in "${PROFILES[@]}"; do
         printf '    %s\n' "${bad//$'\n'/$'\n'    }" >&2
         failed=1
     fi
-    for want in .zshrc .config/mise/config.toml .config/sheldon/plugins.toml .local/bin/md-preview; do
+    for want in .zshrc .config/mise/config.toml .config/sheldon/plugins.toml .local/bin/md-preview .local/bin/dotprod-check; do
         if ! grep -qxF "$want" <<<"$managed"; then
             echo "  FAIL: expected $want to be managed" >&2
             failed=1
