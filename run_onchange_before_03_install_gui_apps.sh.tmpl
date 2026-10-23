@@ -74,9 +74,12 @@ if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🖥️  Running custom GUI installer for {{ $app }}..."
     # Render the template via chezmoi first, then pipe to bash with $1 set to
     # the resolved package name (native entries) or the raw TOML value
-    # (Flatpak entries).
+    # (Flatpak entries). CHEZMOI_EXECUTABLE/CHEZMOI_SOURCE_DIR are exported
+    # by chezmoi to its scripts; reading them at runtime (not rendering the
+    # binary path in) keeps a chezmoi upgrade from changing this script's
+    # hash and re-running the whole tier.
 {{ if $is_native }}
-    "{{ $.chezmoi.executable }}" execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
+    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
 
 # 2. Native install via the OS package manager (native = true)
 elif command -v {{ $app }} &> /dev/null; then
@@ -86,7 +89,7 @@ else
     $PKG_MANAGER "{{ $app }}"
 fi
 {{ else }}
-    "{{ $.chezmoi.executable }}" execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
+    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
 
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
 elif command -v flatpak &> /dev/null; then
