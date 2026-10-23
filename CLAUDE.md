@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `dotProd` is a declarative dotfiles / machine-bootstrapping system built on
 [chezmoi](https://www.chezmoi.io/) and [mise](https://mise.jdx.dev/). It takes a
 blank Linux machine to a fully configured dev environment. It is **not an
-application** — there is no build, test, or lint suite to run. Changes are
-validated by applying them with chezmoi (dry-run) and reasoning about the
+application** — there is no build step. Changes are validated by the test
+suite in `tests/` (lint, data invariants, a render matrix and real
+container applies — see [Testing / CI](#testing--ci)), which CI runs on
+every PR, plus applying them with chezmoi (dry-run) and reasoning about the
 generated shell.
 
 The README.md is thorough and authoritative on intent — read it if unsure
@@ -196,12 +198,14 @@ exactly after the TOML key:
 | `system_tools` | `.scripts/daemons/<tool>.sh` |
 | `external_user_tools`, kind = `toolchains` | `.scripts/toolchains/<tool>.sh` |
 | `external_user_tools`, kind = `standalone` | `.scripts/standalone/<tool>.sh` |
-| `gui_apps` | `.scripts/gui/<app>.sh` or `.scripts/gui/<app>.sh.tmpl` |
+| `gui_apps` | `.scripts/gui/<app>.sh.tmpl` |
 
-The dispatcher passes the TOML value to the script as `$1`. GUI scripts may
-be `.tmpl` files (rendered through `chezmoi execute-template` before
-execution) if they need OS conditionals — see `.scripts/gui/ghostty.sh.tmpl`
-for the pattern (checks `.chezmoi.osRelease.id` for ubuntu/debian vs fedora).
+The dispatcher passes the TOML value to the script as `$1`. GUI scripts are
+always `.sh.tmpl` files (rendered through `chezmoi execute-template` before
+execution — the GUI dispatcher only looks for that name, a plain `.sh` would
+be silently ignored), so they can use OS conditionals — see
+`.scripts/gui/ghostty.sh.tmpl` for the pattern (checks
+`.chezmoi.osRelease.id` for ubuntu/debian vs fedora).
 Every script should be idempotent: check `command -v <tool>` (or equivalent)
 before doing work, and `set -euo pipefail` at the top. `system_tools` daemon
 scripts are the exception to the skip-if-present rule: the dispatcher runs
@@ -265,12 +269,70 @@ render time).
 - `chezmoi execute-template < path/to/file.tmpl` — render a single template
   standalone (useful for checking Go-template syntax without a full apply).
 - `shfmt -w -i 4 <script>` — format shell scripts (shfmt is itself declared
-  as a `system_tools` dependency; recent history shows it's the formatter of
-  record for this repo's `.sh`/`.sh.tmpl` files).
+  as a `system_tools` dependency, and is the formatter of record for this
+  repo's plain `.sh` scripts — CI enforces it. It can't parse `.sh.tmpl`
+  files; those are shellchecked after rendering instead).
+- `tests/run.sh <lint|invariants|render|integration|all>` — the CI test
+  suite, locally (see [Testing / CI](#testing--ci)).
 - `czap` (zsh function defined in `dot_zshrc`) — on a machine with this repo
   applied, runs `chezmoi apply` and reloads the shell.
 - `czup` (same file) — upgrades mise tools and the rust toolchain, then
   reloads the shell.
+
+## Testing / CI
+
+`.github/workflows/ci.yml` runs the suite in `tests/` on every PR; all of
+its logic lives in `tests/` so it runs the same locally via `tests/run.sh`
+(podman or docker; never touches `~/.config/chezmoi` or `$HOME` — host-side
+chezmoi calls use a throwaway config/state, and applies happen only in
+disposable containers). Branch protection requires the single **`ci-gate`**
+check, which passes only when every required job passed:
+
+- **lint** — shellcheck (`--severity=style`) + `shfmt -d -i 4` on every plain
+  shell script, `zsh -n dot_zshrc`, TOML parse.
+- **invariants** — `tests/check_invariants.py`: rules the dispatchers rely
+  on but don't enforce (every `profiles = [...]` names a `[profiles]` key;
+  the hardcoded profile lists in `entry-in-profile` and `.chezmoi.toml.tmpl`
+  match `[profiles]`; per-distro `[system_tools]` tables cover
+  fedora/ubuntu/debian; every installer script exists and every script maps
+  to an entry; `[user_tools]` bins are unique and don't collide with
+  `[system_tools]`; `npm:`/`pipx:`/`cargo:` tools only appear on profiles
+  that also get node/uv/rust; `requires` names a real machine-local key;
+  ...). Plus `tests/check_managed.sh`: `chezmoi managed` never includes
+  repo-only files (README/CLAUDE/LICENSE, `tests/`, `.github/`).
+- **render (fedora/ubuntu/debian)** — inside each distro's container, render
+  every `*.tmpl` for each profile × laptop answer (`.chezmoi.toml.tmpl` via
+  `execute-template --init`), `bash -n` + shellcheck (`--severity=warning`)
+  the rendered shell, then `tests/check_rendered.py` re-derives from the
+  data what each tier should do and checks the rendered dispatchers agree
+  (incl. mise `[tools]` == the `MISE_TOOLS` collision array). Also checks
+  every package the rendered `$PKG_MANAGER` lines would install (system
+  tools + native GUI apps) resolves in that distro's repos.
+- **integration (<distro>, minimal)** — real `chezmoi init --apply` via
+  the README bootstrap, as a non-root user **without sudo**, then a second
+  apply + `chezmoi verify`, `mise ls --missing`, and an interactive zsh
+  (on a pty) that must print nothing to stderr.
+
+`integration (<distro>, headless|standard)` runs the same with passwordless
+sudo on PRs, weekly and on demand, but is `continue-on-error` and not part
+of `ci-gate`: it depends on the latest upstream release of many tools.
+The containers have no systemd, so a logging no-op `systemctl` stands in.
+The minimal integration *is* gating even though it also installs
+`latest` mise tools (a dozen or so small prebuilt binaries), so an upstream
+release can break it with no repo change -- an accepted tradeoff for
+testing the profile that must work unattended. What is pinned: GitHub
+actions and distro images by tag, the CI's chezmoi/shellcheck/shfmt
+binaries by version + sha256 (`tests/lib/common.sh`); installer scripts
+(`get.chezmoi.io`, `mise.run`, rustup, ...) are fetched live.
+
+When adding a tier, data key or template, extend the matching check in
+`tests/` rather than relying on a manual apply. Gotcha:
+`chezmoi init/execute-template --promptBool/--promptChoice` are keyed by the
+prompt *text*, not the data key, so the tests read the prompt texts out of
+`.chezmoi.toml.tmpl` (and assert the rendered answers) rather than
+hardcoding them. Arch isn't tested: the dispatchers have an arch branch, but
+the per-distro `[system_tools]` maps have no arch entries, so it fails
+loudly by design.
 
 ## Editor/tooling notes relevant to config changes
 

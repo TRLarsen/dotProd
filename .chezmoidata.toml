@@ -53,8 +53,15 @@ lldb = "latest"
 # the tier-level sudo gate alone.
 strongswan-vpn = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
 strongswan-vpn-gnome = { profiles = ["standard"], fedora = { name = "NetworkManager-strongswan-gnome", version = "latest" }, ubuntu = { name = "network-manager-strongswan", version = "latest" }, debian = { name = "network-manager-strongswan", version = "latest" } }
-nm-connection-editor = { version = "latest", profiles = ["standard"] }
+# Ubuntu (24.04) ships the nm-connection-editor binary in network-manager-gnome;
+# Debian and Fedora have a standalone nm-connection-editor package.
+nm-connection-editor = { profiles = ["standard"], fedora = { name = "nm-connection-editor", version = "latest" }, ubuntu = { name = "network-manager-gnome", version = "latest" }, debian = { name = "nm-connection-editor", version = "latest" } }
 qalc = { fedora = { name = "qalculate", version = "latest" }, ubuntu = { name = "qalc", version = "latest" }, debian = { name = "qalc", version = "latest" } }
+# Runtime dependency of mise's prebuilt node (the `node` entry in [user_tools]):
+# it links libatomic.so.1, which neither a plain Debian/Ubuntu nor a Fedora
+# install ships. Standard happens to pull it in via desktop packages; headless
+# does not. Same profiles as `node`.
+libatomic = { profiles = ["standard", "headless"], fedora = { name = "libatomic", version = "latest" }, ubuntu = { name = "libatomic1", version = "latest" }, debian = { name = "libatomic1", version = "latest" } }
 # wireshark = "latest" # Commented out, will be ignored
 
 # ===============================================================

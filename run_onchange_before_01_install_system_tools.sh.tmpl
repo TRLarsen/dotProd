@@ -6,7 +6,7 @@ set -euo pipefail
 {{- end }}
 
 {{ if not (index .profiles .profile "sudo") }}
-echo "⏭️  Skipping system_tools tier entirely: profile {{ .profile | quote }} has no sudo."
+echo "⏭️  Skipping system_tools tier entirely: profile \"{{ .profile }}\" has no sudo."
 exit 0
 {{ else }}
 echo "Processing system-level dependencies..."
@@ -14,12 +14,15 @@ echo "Processing system-level dependencies..."
 # Determine the native package manager based on OS
 {{ if eq .chezmoi.osRelease.id "ubuntu" "debian" }}
     PKG_MANAGER="sudo apt-get install -y"
+    PKG_QUERY="dpkg -s"
     echo "Updating system package lists..."
     sudo apt-get update -y
 {{ else if eq .chezmoi.osRelease.id "fedora" }}
     PKG_MANAGER="sudo dnf install -y"
+    PKG_QUERY="rpm -q"
 {{ else if eq .chezmoi.osRelease.id "arch" }}
     PKG_MANAGER="sudo pacman -S --noconfirm"
+    PKG_QUERY="pacman -Q"
 {{ else }}
     echo "❌ Unsupported operating system topology."
     exit 1
@@ -50,7 +53,9 @@ echo "📦 Executing custom installation script for {{ $tool }} (Version: {{ $pk
 # We pass the resolved version to the script as $1
 bash "{{ joinPath $.chezmoi.sourceDir $script }}" "{{ $pkgVersion }}"
 {{- else }}
-if ! command -v {{ $tool }} &> /dev/null; then
+# Also ask the package manager, for packages with no binary named after the
+# key (libraries, strongswan-vpn, ...), so those aren't reinstalled every run.
+if ! command -v {{ $tool }} &> /dev/null && ! $PKG_QUERY "{{ $pkgName }}" &> /dev/null; then
     echo "📥 Installing {{ $pkgName }} via system package manager..."
     $PKG_MANAGER "{{ $pkgName }}"
 else
@@ -58,7 +63,7 @@ else
 fi
 {{- end }}
 {{- else }}
-echo "⏭️  Skipping {{ $tool }} (not in profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $tool }} (not in profile \"{{ $.profile }}\")."
 {{- end }}
 {{ end }}
 {{ end }}

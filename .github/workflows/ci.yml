@@ -1,0 +1,124 @@
+# Test suite for dotProd. All logic lives in tests/ (run it locally with
+# tests/run.sh); this file only wires it into GitHub Actions.
+#
+# MERGE GATE: branch protection should require exactly one check, `ci-gate`.
+# It passes only if every *required* job below succeeded:
+#   lint, invariants, render (x3 distros), integration-minimal (x3 distros)
+# The headless/standard integration jobs (integration-full) are deliberately
+# NOT part of the gate: they pull the latest upstream release of dozens of
+# tools (rust toolchain, node, codex, ...), so they can fail for reasons
+# unrelated to the PR. They still run on every PR, weekly and on demand, and
+# are marked continue-on-error so a failure there never fails the run.
+# integration-minimal also installs `latest` mise tools (a much smaller set)
+# yet IS gating: an upstream release can break it with no repo change, the
+# accepted price of testing the sudoless profile end to end.
+#
+# Pinning: actions and distro images by tag; chezmoi/shellcheck/shfmt by
+# version + sha256 (tests/lib/common.sh); installer scripts (get.chezmoi.io,
+# mise.run, rustup, ...) are fetched live.
+name: CI
+
+on:
+  # No branch filter on purpose: PRs stacked on another PR's branch (base !=
+  # main) must be tested too. push is main-only so a PR branch isn't run
+  # twice (once for the push, once for the PR).
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1" # Mondays 05:23 UTC: catches upstream drift with no PR open
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # PR runs share one group per PR, so a new push cancels the superseded run.
+  # Every other run (push to main, schedule, dispatch) gets a group of its own
+  # (keyed by run id), so it is never cancelled -- or queued -- by another.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # GitHub's runners have both podman and docker; pin the choice.
+  CONTAINER_ENGINE: docker
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install zsh (for zsh -n dot_zshrc)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+      - run: tests/run.sh lint
+
+  invariants:
+    name: invariants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - run: tests/run.sh invariants
+
+  render:
+    name: render (${{ matrix.distro }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [fedora, ubuntu, debian]
+    steps:
+      - uses: actions/checkout@v5
+      - run: tests/run.sh render ${{ matrix.distro }}
+
+  integration-minimal:
+    name: integration (${{ matrix.distro }}, minimal)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [fedora, ubuntu, debian]
+    env:
+      GITHUB_TOKEN: ${{ github.token }} # read-only; keeps mise under GitHub's API rate limit
+    steps:
+      - uses: actions/checkout@v5
+      - run: tests/run.sh integration ${{ matrix.distro }} minimal
+
+  integration-full:
+    name: integration (${{ matrix.distro }}, ${{ matrix.profile }}) [not required]
+    if: github.event_name != 'push'
+    # NOT GATING (see the header): a failure here is reported on the PR but
+    # does not fail the workflow, and ci-gate does not depend on this job.
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [fedora, ubuntu, debian]
+        profile: [headless, standard]
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: tests/run.sh integration ${{ matrix.distro }} ${{ matrix.profile }}
+
+  ci-gate:
+    name: ci-gate
+    # always(): report a real failure (instead of "skipped", which branch
+    # protection treats as passing) when a required job failed or was cancelled.
+    if: always()
+    needs: [lint, invariants, render, integration-minimal]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every gating job to have succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success")' >/dev/null

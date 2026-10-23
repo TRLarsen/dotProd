@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # Safely exit if Helix is not installed
-if ! command -v hx &> /dev/null; then
+if ! command -v hx &>/dev/null; then
     exit 0
 fi
 
 # Safely exit if lldb-dap is already configured in the user path
-if command -v lldb-dap &> /dev/null; then
+if command -v lldb-dap &>/dev/null; then
     exit 0
 fi
 
