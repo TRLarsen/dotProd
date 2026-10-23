@@ -21,13 +21,16 @@ fi
 
 echo "Display server detected. Validating GUI elements..."
 
-# Pre-pass: does any [gui_apps] entry opt into native = true? Only then do we
-# need to resolve PKG_MANAGER / run apt-get update below -- avoids a wasted
-# apt-get update (and sudo prompt) on machines with no native gui_apps entries.
+# Pre-pass: does any [gui_apps] entry available on this profile opt into
+# native = true? Only then do we need to resolve PKG_MANAGER / run apt-get
+# update below -- avoids a wasted apt-get update (and sudo prompt) on
+# machines with no native gui_apps entries.
 {{- $has_native := false }}
 {{- range $app, $app_identifier := .gui_apps }}
 {{- if and (kindIs "map" $app_identifier) (hasKey $app_identifier "native") $app_identifier.native }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
 {{- $has_native = true }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{ if $has_native }}
