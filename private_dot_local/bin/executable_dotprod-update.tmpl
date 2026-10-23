@@ -1,0 +1,272 @@
+#!/bin/bash
+{{- if not (hasKey .profiles .profile) }}
+{{- fail (printf "profile %q has no entry in [profiles] in .chezmoidata.toml -- add one or fix the machine-local profile value" .profile) }}
+{{- end }}
+{{- $sudo := index .profiles .profile "sudo" }}
+# dotprod-update: upgrade everything this repo installs, in one go. Deployed
+# to ~/.local/bin/dotprod-update by chezmoi from
+# private_dot_local/bin/executable_dotprod-update.tmpl, rendered for this
+# machine:
+#   OS:      {{ .chezmoi.osRelease.id }}
+#   profile: {{ .profile }} (sudo = {{ $sudo }})
+# Steps the profile can't do (anything needing sudo, on a no-sudo profile)
+# aren't even in the rendered file. `czup` (dot_zshrc) runs this and then
+# reloads the shell.
+#
+# Steps, in order (each one is skipped, with a message, when its tool isn't
+# installed or the profile doesn't allow it):
+#   1. system packages      (dnf / apt-get / pacman; needs a sudo profile)
+#   2. Flatpaks, system-wide (`sudo flatpak update`; needs a sudo profile --
+#      the gui_apps tier installs them with `sudo flatpak install`)
+#   3. Flatpaks, per-user   (`flatpak update --user`, e.g. Zen's
+#      .systemconfig extension; no sudo needed)
+#   4. chezmoi itself       (`chezmoi upgrade`, only for the
+#      ~/.local/bin/chezmoi the README bootstrap installs)
+#   5. rust toolchain       (`rustup update`, then cargo's zsh completions)
+#   6. mise itself          (`mise self-update`, only for the
+#      ~/.local/bin/mise that the 02 tier's mise.run bootstrap installs)
+#   7. mise tools           (`mise upgrade`)
+#   8. sheldon plugins      (`sheldon lock --update`)
+#
+# Error policy: a failing step doesn't stop the others (one flaky mirror
+# shouldn't leave everything else stale). Every step's result is printed in
+# a summary at the end, and the exit status is 1 if any step failed.
+set -euo pipefail
+
+{{- $os := .chezmoi.osRelease.id }}
+{{- /* Per-distro system upgrade commands, run in order. Same distro set as
+       the 01 tier's package-manager switch. A distro missing here is only an
+       error on a sudo profile, and only for the system step (it fails at run
+       time and the summary reports it) -- the user-space steps still work on,
+       e.g., a RHEL-family university machine on "minimal". */}}
+{{- $systemUpgrade := dict
+    "fedora" (list "sudo dnf upgrade --refresh -y")
+    "ubuntu" (list "sudo apt-get update" "sudo apt-get upgrade -y")
+    "debian" (list "sudo apt-get update" "sudo apt-get upgrade -y")
+    "arch" (list "sudo pacman -Syu --noconfirm") }}
+
+usage() {
+    cat <<'EOF'
+Usage: dotprod-update [--dry-run] [--no-system]
+
+Upgrade system packages, Flatpaks, chezmoi, the rust toolchain, mise and
+its tools, and sheldon's plugins (see the header of this script for details).
+
+  -n, --dry-run    show what would run; change nothing
+      --no-system  skip the steps that need sudo (system packages and
+                   system-wide Flatpaks)
+  -h, --help       show this help
+EOF
+}
+
+DRY_RUN=0
+SKIP_SYSTEM=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -n | --dry-run) DRY_RUN=1 ;;
+    --no-system) SKIP_SYSTEM=1 ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    *)
+        echo "dotprod-update: unknown option '$1'" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    shift
+done
+
+# Everything that changes the machine goes through run/run_to, so --dry-run
+# prints exactly the commands a real run would execute. Presence checks
+# (command -v, flatpak list, ...) are read-only and run for real either way.
+run() {
+    printf '  + %s\n' "$*"
+    [[ $DRY_RUN -eq 1 ]] && return 0
+    "$@"
+}
+# run_to <file> <cmd...>: like run, but writes the command's stdout to <file>
+# (via a temp file, so a failing command doesn't leave <file> truncated).
+run_to() {
+    local out="$1"
+    shift
+    printf '  + %s > %s\n' "$*" "$out"
+    [[ $DRY_RUN -eq 1 ]] && return 0
+    mkdir -p "$(dirname "$out")" && "$@" >"$out.tmp" && mv "$out.tmp" "$out"
+}
+
+SKIPPED=0
+skip() {
+    echo "  ⏭️  Skipping: $*"
+    SKIPPED=1
+}
+
+# step <title> <function>: runs one step and records ok/skipped/FAILED for the
+# summary. The function runs on the left of `||`, where `set -e` doesn't
+# apply (that's what lets later steps run), so step functions must chain
+# their commands with `|| return` themselves.
+RESULTS=()
+FAILED=0
+step() {
+    local title="$1" rc=0
+    echo
+    echo "==> $title"
+    SKIPPED=0
+    "$2" || rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "  ❌ $title failed (exit $rc)"
+        RESULTS+=("FAILED   $title")
+        FAILED=1
+    elif [[ $SKIPPED -eq 1 ]]; then
+        RESULTS+=("skipped  $title")
+    elif [[ $DRY_RUN -eq 1 ]]; then
+        RESULTS+=("planned  $title")
+    else
+        RESULTS+=("ok       $title")
+    fi
+}
+
+# mise-managed tools may not be on PATH (no `mise activate` in this shell),
+# and `mise upgrade` can move them to a new install dir mid-run, so ask mise
+# where a tool is now, then fall back to PATH.
+MISE="$HOME/.local/bin/mise"
+[[ -x "$MISE" ]] || MISE="$(command -v mise || true)"
+find_tool() {
+    if [[ -n "$MISE" ]] && "$MISE" which "$1" 2>/dev/null; then
+        return 0
+    fi
+    command -v "$1"
+}
+
+# --no-system is checked first, outside the profile conditional, so the flag
+# means the same thing (and is used) in every rendering of this file.
+system_packages() {
+    if [[ $SKIP_SYSTEM -eq 1 ]]; then
+        skip "--no-system given"
+        return 0
+    fi
+{{- if not $sudo }}
+    skip "profile \"{{ .profile }}\" has no sudo"
+{{- else }}{{- if hasKey $systemUpgrade $os }}
+{{- range (index $systemUpgrade $os) }}
+    run {{ . }} || return
+{{- end }}
+{{- else }}
+    echo "  ❌ Unsupported operating system \"{{ $os }}\": no system upgrade command for it in dotprod-update's table (private_dot_local/bin/executable_dotprod-update.tmpl)." >&2
+    return 1
+{{- end }}
+{{- end }}
+}
+
+flatpaks_system() {
+    if ! command -v flatpak &>/dev/null; then
+        skip "flatpak is not installed"
+        return 0
+    fi
+    if [[ $SKIP_SYSTEM -eq 1 ]]; then
+        skip "--no-system given"
+        return 0
+    fi
+{{- if not $sudo }}
+    skip "profile \"{{ .profile }}\" has no sudo (system-wide Flatpaks need it)"
+{{- else }}
+    local installed
+    installed="$(flatpak list --system --columns=application)" || return
+    if [[ -z "$installed" ]]; then
+        skip "no system-wide Flatpaks installed"
+        return 0
+    fi
+    run sudo flatpak update --system -y
+{{- end }}
+}
+
+flatpaks_user() {
+    if ! command -v flatpak &>/dev/null; then
+        skip "flatpak is not installed"
+        return 0
+    fi
+    local installed
+    installed="$(flatpak list --user --columns=application)" || return
+    if [[ -z "$installed" ]]; then
+        skip "no per-user Flatpaks installed"
+        return 0
+    fi
+    run flatpak update --user -y
+}
+
+# Only the copy the README's get.chezmoi.io one-liner puts in ~/.local/bin:
+# a distro-packaged chezmoi is upgraded with the system packages instead
+# (and `chezmoi upgrade` would reach for sudo to do it).
+chezmoi_self() {
+    local chezmoi="$HOME/.local/bin/chezmoi"
+    if [[ ! -x "$chezmoi" ]]; then
+        skip "no $chezmoi (a package-managed chezmoi is upgraded with the system packages)"
+        return 0
+    fi
+    run "$chezmoi" upgrade
+}
+
+# Before `mise upgrade`, so any cargo: tools it rebuilds use the new compiler.
+rust_toolchain() {
+    local rustup
+    rustup="$(command -v rustup || echo "${CARGO_HOME:-$HOME/.cargo}/bin/rustup")"
+    if [[ ! -x "$rustup" ]]; then
+        skip "rustup is not installed"
+        return 0
+    fi
+    run "$rustup" update || return
+    # Same file .scripts/toolchains/rust.sh generates at install time; cargo's
+    # flags can change between releases, so refresh it with the toolchain.
+    run_to "$HOME/.local/share/zsh/completions/_cargo" "$rustup" completions zsh
+}
+
+mise_self() {
+    if [[ ! -x "$HOME/.local/bin/mise" ]]; then
+        skip "no ~/.local/bin/mise (mise was installed some other way; update it that way)"
+        return 0
+    fi
+    # mise.run installs a self-updatable binary; self-update fetches the same
+    # build (musl, per the 02 tier's MISE_INSTALL_MUSL=1) it was compiled as.
+    run "$HOME/.local/bin/mise" self-update --yes
+}
+
+mise_tools() {
+    if [[ -z "$MISE" ]]; then
+        skip "mise is not installed"
+        return 0
+    fi
+    run "$MISE" upgrade
+}
+
+sheldon_plugins() {
+    local sheldon
+    if ! sheldon="$(find_tool sheldon)"; then
+        skip "sheldon is not installed"
+        return 0
+    fi
+    run "$sheldon" lock --update
+}
+
+[[ $DRY_RUN -eq 1 ]] && echo "Dry run: printing commands only, nothing will be changed."
+step "System packages" system_packages
+step "Flatpaks (system-wide)" flatpaks_system
+step "Flatpaks (per-user)" flatpaks_user
+step "chezmoi" chezmoi_self
+step "Rust toolchain" rust_toolchain
+step "mise" mise_self
+step "mise tools" mise_tools
+step "Sheldon plugins" sheldon_plugins
+
+echo
+echo "==> Summary"
+printf '  %s\n' "${RESULTS[@]}"
+if [[ $FAILED -ne 0 ]]; then
+    echo "❌ Some steps failed (see above); the other steps still ran."
+    exit 1
+fi
+if [[ $DRY_RUN -eq 1 ]]; then
+    echo "Dry run complete; nothing was changed."
+else
+    echo "✔ Everything is up to date."
+fi

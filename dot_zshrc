@@ -136,17 +136,13 @@ czap() {
     chezmoi apply "$@" && exec zsh
 }
 
-# Upgrade Binaries and update current session
+# Upgrade everything (system packages, Flatpaks, chezmoi, rust, mise and its
+# tools, sheldon plugins -- see `dotprod-update --help`, deployed from
+# private_dot_local/bin/executable_dotprod-update.tmpl), then reload the
+# current session. Like czap, it only reloads on success, so a failed step's
+# summary stays on screen. A function, not a script, because of `exec zsh`.
 czup() {
-    echo "Upgrading Mise tools..."
-    mise upgrade
-    echo "Upgrading Rust toolchain..."
-    rustup update
-    rustup completions zsh > "$HOME/.local/share/zsh/completions/_cargo"
-    echo "Updating Sheldon plugins..."
-    sheldon lock --update
-    echo "Upgrades complete. Reloading shell..."
-    exec zsh
+    dotprod-update "$@" && echo "Reloading shell..." && exec zsh
 }
 
 # `eza` (`ls` replacement) default
