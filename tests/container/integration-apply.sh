@@ -81,3 +81,42 @@ if [[ -s "$HOME/zsh.err" ]]; then
     fail "interactive zsh startup is not clean on profile=$profile"
 fi
 echo "ok: interactive zsh startup is clean"
+
+# dotprod-update (what `czup` runs) is only exercised as a dry run: a real
+# one would upgrade the distro and every tool to whatever upstream shipped
+# today, which is neither fast nor deterministic. The dry run still does all
+# the presence checks for real, so it shows which steps this machine plans.
+# A logging `sudo` shim goes first on PATH: nothing in a dry run (on any
+# profile) may call sudo, and a no-sudo profile must not even plan to.
+step "dotprod-update --dry-run plans the right steps and never calls sudo"
+update="$HOME/.local/bin/dotprod-update"
+"$update" --help >/dev/null || fail "dotprod-update --help exited non-zero"
+rc=0
+"$update" --no-such-flag &>/dev/null || rc=$?
+[[ $rc -eq 2 ]] || fail "dotprod-update with an unknown flag exited $rc, expected 2"
+mkdir -p "$HOME/sudo-shim"
+cat >"$HOME/sudo-shim/sudo" <<EOF
+#!/bin/sh
+echo "sudo \$*" >>"$HOME/sudo-calls"
+exit 1
+EOF
+chmod +x "$HOME/sudo-shim/sudo"
+plan="$(PATH="$HOME/sudo-shim:$PATH" "$update" --dry-run 2>&1)" || fail "dotprod-update --dry-run failed: $plan"
+echo "$plan"
+[[ ! -e "$HOME/sudo-calls" ]] || fail "dotprod-update --dry-run called sudo: $(cat "$HOME/sudo-calls")"
+expect() { grep -qE "$1" <<<"$plan" || fail "dotprod-update --dry-run: expected a line matching /$1/"; }
+reject() { ! grep -qE "$1" <<<"$plan" || fail "dotprod-update --dry-run: unexpected line matching /$1/"; }
+reject '^  FAILED'
+expect "^  \+ $HOME/\.local/bin/chezmoi upgrade$"
+expect "^  \+ $HOME/\.local/bin/mise self-update --yes$"
+expect "^  \+ $HOME/\.local/bin/mise upgrade$"
+expect '^  \+ /.*/sheldon lock --update$'
+if [[ "$profile" == minimal ]]; then
+    reject '^  \+ sudo '
+    expect 'Skipping: profile "minimal" has no sudo$'
+    expect 'Skipping: rustup is not installed$'
+else
+    expect '^  \+ sudo (dnf upgrade --refresh -y|apt-get upgrade -y)$'
+    expect "^  \+ $HOME/\.cargo/bin/rustup update$"
+fi
+echo "ok: dotprod-update dry run"

@@ -185,6 +185,26 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply \
   trlarsen/dotProd
 ```
 
+## 🔄 Updating
+
+`czup` (a zsh function) upgrades everything on the machine, then reloads the
+shell. It runs `~/.local/bin/dotprod-update`, which is rendered for the
+machine's distro and install profile: system packages (`dnf`/`apt-get`/
+`pacman`) and system-wide Flatpaks only on profiles with `sudo`, then
+per-user Flatpaks, chezmoi itself, the rust toolchain, mise and every mise
+tool, and sheldon's plugins. Steps whose tool isn't installed are skipped;
+a failed step doesn't stop the others, and the summary at the end lists
+each step's result (exit status 1 if any failed).
+
+```bash
+czup                         # upgrade everything, then reload the shell
+dotprod-update --dry-run     # print what would run, change nothing
+dotprod-update --no-system   # skip the sudo steps
+```
+
+(`czup` doesn't pull new commits of this repo; `chezmoi update` does that,
+or `czap` after a `git pull` in the source directory.)
+
 ## 🧪 Testing / CI
 
 Every pull request runs the test suite in `tests/` via GitHub Actions

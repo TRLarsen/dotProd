@@ -149,6 +149,26 @@ for case in cases:
         check(not re.search(r"^\s*chezmoi ", text, re.M), f"{where} {rel} calls a bare `chezmoi`")
         check("/opt/ci-bin/chezmoi" not in text, f"{where} {rel} has the chezmoi binary path rendered in")
 
+    # --- dotprod-update (czup): sudo steps exist only where the profile has sudo
+    update = read("private_dot_local/bin/executable_dotprod-update")
+    sudo_lines = [l.strip() for l in update.splitlines() if re.match(r"\s*run sudo ", l)]
+    if not caps["sudo"]:
+        check(not sudo_lines, f"{where} dotprod-update runs sudo on a no-sudo profile: {sudo_lines}")
+        check(f'skip "profile \\"{profile}\\" has no sudo"' in update,
+              f"{where} dotprod-update does not report skipping system packages (no sudo)")
+    else:
+        expected = {
+            "fedora": ["run sudo dnf upgrade --refresh -y || return"],
+            "ubuntu": ["run sudo apt-get update || return", "run sudo apt-get upgrade -y || return"],
+            "debian": ["run sudo apt-get update || return", "run sudo apt-get upgrade -y || return"],
+        }[distro]
+        for line in expected:
+            check(contains_line(update, line), f"{where} dotprod-update lacks system upgrade step {line!r}")
+        check(contains_line(update, "run sudo flatpak update --system -y"),
+              f"{where} dotprod-update lacks the system-wide Flatpak update")
+    check(contains_line(update, "run flatpak update --user -y"),
+          f"{where} dotprod-update lacks the per-user Flatpak update")
+
     # --- [personal] dispatcher
     personal = read("run_after_20_configure_personal.sh")
     for app, settings in data.get("personal", {}).items():

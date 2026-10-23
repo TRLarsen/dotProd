@@ -84,7 +84,9 @@ for profile in "${PROFILES[@]}"; do
                 fail "$profile/laptop=$laptop: $t rendered with stderr output: $(cat "$dest.stderr")"
             fi
             rm -f "$dest.stderr"
-            if [[ "$dest" == *.sh ]]; then
+            # Shell is *.sh, plus extensionless executables with a bash
+            # shebang (e.g. private_dot_local/bin/executable_dotprod-update).
+            if [[ "$dest" == *.sh ]] || head -n1 "$dest" | grep -Eq '^#!.*(/|env )bash$'; then
                 bash -n "$dest" || fail "$profile/laptop=$laptop: rendered $t fails bash -n"
                 # Rendered output is shaped by template whitespace, so style-
                 # level findings (formatting, quoting the template already
@@ -136,12 +138,14 @@ else
 fi
 
 # A machine whose stored profile isn't a [profiles] key must fail at render
-# time in every install-tier dispatcher, rather than guessing.
+# time in every install-tier dispatcher (and in dotprod-update, which is
+# rendered from the same capabilities), rather than guessing.
 echo "--- $DISTRO / profile=bogus (must fail loudly)"
 printf '[data]\n    laptop = false\n    profile = "bogus"\n' >"$work/bogus.toml"
 for t in run_onchange_before_01_install_system_tools.sh.tmpl \
     run_onchange_before_02_install_user_tools.sh.tmpl \
-    run_onchange_before_03_install_gui_apps.sh.tmpl; do
+    run_onchange_before_03_install_gui_apps.sh.tmpl \
+    private_dot_local/bin/executable_dotprod-update.tmpl; do
     if cz --config "$work/bogus.toml" execute-template <"$SRC/$t" >/dev/null 2>"$work/bogus.err"; then
         fail "$t rendered for unknown profile \"bogus\" instead of failing"
     elif ! grep -q 'has no entry in \[profiles\]' "$work/bogus.err"; then

@@ -276,8 +276,21 @@ render time).
   suite, locally (see [Testing / CI](#testing--ci)).
 - `czap` (zsh function defined in `dot_zshrc`) — on a machine with this repo
   applied, runs `chezmoi apply` and reloads the shell.
-- `czup` (same file) — upgrades mise tools and the rust toolchain, then
-  reloads the shell.
+- `czup` (same file) — runs `dotprod-update` (args passed through), then
+  reloads the shell if it succeeded.
+- `dotprod-update [--dry-run] [--no-system]` — deployed from
+  `private_dot_local/bin/executable_dotprod-update.tmpl` to
+  `~/.local/bin/dotprod-update`; upgrades everything the tiers installed:
+  system packages (dnf/apt-get/pacman, from a per-distro lookup table in the
+  template) and system-wide Flatpaks only when the profile has `sudo`,
+  per-user Flatpaks, the bootstrap-installed `~/.local/bin/chezmoi`
+  (`chezmoi upgrade`) and `~/.local/bin/mise` (`mise self-update`), `rustup
+  update` (+ cargo's zsh completions), `mise upgrade`, `sheldon lock
+  --update`. It's rendered per machine, so a no-sudo profile's copy contains
+  no sudo commands at all. Each step skips itself (with a message) when its
+  tool isn't installed; a failing step doesn't stop the rest, and the run
+  ends with a per-step summary and exits 1 if anything failed. If you add an
+  install mechanism that has its own updater, add a step there.
 
 ## Testing / CI
 
