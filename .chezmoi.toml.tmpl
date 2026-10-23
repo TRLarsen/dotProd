@@ -5,44 +5,51 @@
 # run_after_20_configure_personal.sh.tmpl, for how this data gates
 # machine-class-specific settings.
 #
-# Both answers below follow the same "discover, then confirm" pattern: the
-# template inspects the machine, offers what it found as the prompt's
-# DEFAULT, and you confirm or override it. Nothing is ever decided silently.
-# Each is answered once per machine (the *Once prompt functions reuse the
-# stored answer). To change them later, from an already-cloned source dir:
-#   chezmoi init --prompt                  re-ask both, defaulting to what's detected now
-#   chezmoi init --prompt --promptDefaults accept what's detected now, without asking
-# The prompt TEXTS must stay stable: `--promptBool`/`--promptChoice` answers
-# (README's non-interactive bootstrap, tests/) are keyed by them.
+# `laptop` and `profile` are each answered once per machine; `chezmoi init
+# --prompt` (from an already-cloned source dir) re-asks them.
 #
 # `laptop` is auto-detected from the presence of a battery
 # (/sys/class/power_supply/BAT*), but you're asked to confirm/override in
 # case that heuristic is wrong (e.g. a desktop with a UPS reporting as a
 # battery).
+{{- /* Both answers follow a "discover, then confirm" pattern: this template
+       inspects the machine, offers what it found as the prompt's DEFAULT,
+       and you confirm or override it. Nothing is ever decided silently.
+       The *Once prompt functions reuse the stored answer; `chezmoi init
+       --prompt` re-asks both, defaulting to what's detected now, and
+       `--prompt --promptDefaults` accepts those without asking.
+       The prompt TEXTS must stay stable: `--promptBool`/`--promptChoice`
+       answers (README's non-interactive bootstrap, tests/) are keyed by
+       them. */ -}}
 {{- $batteryPresent := gt (len (glob "/sys/class/power_supply/BAT*")) 0 -}}
 {{- $laptop := promptBoolOnce . "laptop" "Is this a laptop" $batteryPresent }}
 
-# `profile` picks which install profile this machine uses -- see the
-# [profiles] capability table in .chezmoidata.toml and the "entry-in-profile"
-# partial in .chezmoitemplates for how it's applied. Orthogonal to `laptop`
-# (a shared/borrowed laptop can still be "minimal"). promptChoiceOnce (not
-# promptStringOnce) validates the answer against the choices list, so a typo
-# can't silently produce an unrecognized profile.
-#
-# The suggested default comes from detecting the two [profiles]
-# capabilities on this machine:
-#   sudo -- `sudo` is on PATH AND you're root or in a sudo/wheel/admin group.
-#           Group membership is used instead of running `sudo -n true`: that
-#           would miss password-protected sudo, and on a shared machine where
-#           you aren't a sudoer it gets logged/reported as an incident.
-#   gui  -- sudo, plus a display server ($WAYLAND_DISPLAY/$DISPLAY) or an
-#           installed desktop session (/usr/share/{wayland-,x}sessions/
-#           *.desktop -- the files, not the dirs: Fedora's `filesystem`
-#           package creates both dirs empty even on servers). The session
-#           files catch a desktop you're SSH'd into. gui implies sudo
-#           because the gui_apps tier installs with sudo.
-# `output` aborts the template if its command fails, so `id` runs behind
-# `|| true` -- on an odd system it just counts as "no admin group".
+# `profile` picks which install profile this machine uses (standard,
+# headless or minimal) -- see the [profiles] table in .chezmoidata.toml.
+{{- /* See the "entry-in-profile" partial in .chezmoitemplates for how it's
+       applied. Orthogonal to `laptop` (a shared/borrowed laptop can still
+       be "minimal"). promptChoiceOnce (not promptStringOnce) validates the
+       answer against the choices list, so a typo can't silently produce an
+       unrecognized profile.
+
+       The suggested default comes from detecting the two [profiles]
+       capabilities on this machine:
+         sudo -- `sudo` is on PATH AND you're root or in a sudo/wheel/admin
+                 group. Group membership is used instead of running `sudo
+                 -n true`: that would miss password-protected sudo, and on a
+                 shared machine where you aren't a sudoer it gets
+                 logged/reported as an incident. Root without `sudo` on PATH
+                 is suggested minimal, because the dispatchers call a
+                 literal `sudo`.
+         gui  -- sudo, plus a display server ($WAYLAND_DISPLAY/$DISPLAY) or
+                 an installed desktop session (/usr/share/{wayland-,x}sessions/
+                 *.desktop -- the files, not the dirs: Fedora's `filesystem`
+                 package creates both dirs empty even on servers). The
+                 session files catch a desktop you're SSH'd into. gui
+                 implies sudo because the gui_apps tier installs with sudo.
+       `output` aborts the template if its command fails, so `id` runs
+       behind `|| true` -- on an odd system it just counts as "no admin
+       group". */ -}}
 {{- $sudoPath := lookPath "sudo" -}}
 {{- $groups := regexSplit "\\s+" (output "sh" "-c" "id -Gn 2>/dev/null || true" | trim) -1 -}}
 {{- $isRoot := eq (toString .chezmoi.uid) "0" -}}
@@ -77,15 +84,16 @@
 {{-   fail (printf ".chezmoi.toml.tmpl: no profile for detected capabilities %q -- add it to $profileFor" $caps) }}
 {{- end -}}
 {{- $suggested := index $profileFor $caps -}}
-{{- /* Explain the default before asking -- but only to a person at a
-       terminal, so a piped/scripted init's stdout stays clean. */ -}}
-{{- if stdinIsATTY }}
-{{-   $stored := "" }}
-{{-   if hasKey . "profile" }}{{ $stored = .profile }}{{ end }}
+{{- /* Explain the default before asking, but only on a first init (no stored
+       profile yet): an existing machine's `chezmoi init` would otherwise
+       print this every time for an answer it keeps. `chezmoi init --prompt`
+       therefore re-asks with the detected default but without the hint.
+       The hint is also gated on stdin being a TTY (so a piped/scripted
+       init's stdout stays clean), while chezmoi's prompts read /dev/tty:
+       under `curl ... | sh -s -- init` the prompt shows its default but no
+       explanation. Accepted limitation. */ -}}
+{{- if and stdinIsATTY (not (hasKey . "profile")) }}
 {{-   writeToStdout (printf "Install profile detection: %s; %s -- suggesting %q.\n" $sudoWhy $desktopWhy $suggested) }}
-{{-   if and $stored (ne $stored $suggested) }}
-{{-     writeToStdout (printf "  (This machine's stored profile is %q. `chezmoi init --prompt` re-asks.)\n" $stored) }}
-{{-   end }}
 {{- end }}
 {{- $profile := promptChoiceOnce . "profile" "Which install profile is this machine (standard/headless/minimal)" (list "standard" "headless" "minimal") $suggested }}
 [data]
