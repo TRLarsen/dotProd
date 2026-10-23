@@ -73,13 +73,33 @@ if m:
           f".chezmoitemplates/entry-in-profile default list {allowed} != [profiles] keys {sorted(PROFILE_NAMES)}")
 
 config_tmpl = (REPO / ".chezmoi.toml.tmpl").read_text()
-m = re.search(r'promptChoiceOnce\s+\.\s+"profile"\s+"[^"]*"\s+\(list((?:\s+"[^"]+")+)\)\s+"([^"]+)"', config_tmpl)
-check(m is not None, ".chezmoi.toml.tmpl: could not find the `profile` promptChoiceOnce")
-if m:
-    choices, default = re.findall(r'"([^"]+)"', m.group(1)), m.group(2)
-    check(set(choices) == PROFILE_NAMES,
-          f".chezmoi.toml.tmpl profile choices {choices} != [profiles] keys {sorted(PROFILE_NAMES)}")
-    check(default in choices, f".chezmoi.toml.tmpl profile default {default!r} is not one of its choices")
+m = re.search(r'promptChoiceOnce\s+\.\s+"profile"\s+"[^"]*"\s+\(list((?:\s+"[^"]+")+)\)\s+\$suggested\s', config_tmpl)
+check(m is not None, ".chezmoi.toml.tmpl: could not find the `profile` promptChoiceOnce (defaulting to $suggested)")
+choices = re.findall(r'"([^"]+)"', m.group(1)) if m else []
+check(set(choices) == PROFILE_NAMES,
+      f".chezmoi.toml.tmpl profile choices {choices} != [profiles] keys {sorted(PROFILE_NAMES)}")
+
+# The suggested default comes from a detected-capabilities -> profile table
+# in .chezmoi.toml.tmpl. It has to restate [profiles] (.chezmoidata isn't
+# loaded when the config template runs), so check it against [profiles]:
+# every key's capabilities must be its profile's, and every combination
+# detection can produce (gui only with sudo) must have a key, or init fails.
+m = re.search(r'\$profileFor\s*:=\s*dict((?:\s+"[^"]*")+)', config_tmpl)
+check(m is not None, ".chezmoi.toml.tmpl: could not find the `$profileFor := dict ...` detection table")
+pairs = re.findall(r'"([^"]*)"', m.group(1)) if m else []
+check(len(pairs) % 2 == 0, f".chezmoi.toml.tmpl $profileFor has an odd number of arguments: {pairs}")
+detect_keys = pairs[0::2]
+check(len(detect_keys) == len(set(detect_keys)), f".chezmoi.toml.tmpl $profileFor has duplicate keys: {detect_keys}")
+for key, name in zip(pairs[0::2], pairs[1::2]):
+    km = re.fullmatch(r"sudo=(true|false) gui=(true|false)", key)
+    check(km is not None, f".chezmoi.toml.tmpl $profileFor key {key!r} is not \"sudo=<bool> gui=<bool>\"")
+    check(name in choices, f".chezmoi.toml.tmpl $profileFor suggests {name!r}, which is not a prompt choice")
+    if km and name in PROFILES:
+        want = {"sudo": km.group(1) == "true", "gui": km.group(2) == "true"}
+        check(PROFILES[name] == want,
+              f".chezmoi.toml.tmpl $profileFor maps {key!r} to {name!r}, but [profiles.{name}] is {PROFILES[name]}")
+for reachable in ("sudo=true gui=true", "sudo=true gui=false", "sudo=false gui=false"):
+    check(reachable in detect_keys, f".chezmoi.toml.tmpl $profileFor has no profile for detected {reachable!r}")
 
 # Machine-local data keys .chezmoi.toml.tmpl writes under [data] (for `requires`).
 data_block = config_tmpl.split("[data]", 1)[1] if "[data]" in config_tmpl else ""
