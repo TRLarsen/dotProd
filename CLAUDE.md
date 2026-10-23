@@ -128,11 +128,19 @@ PATH and root or in a sudo/wheel/admin group — `id -Gn` run behind `|| true`
 because `output` aborts the template on failure) and the `gui` capability
 (display env var or a `.desktop` file in `/usr/share/{wayland-,x}sessions`),
 maps them via a `$profileFor` table to a suggested profile, and prints why to
-a TTY. The user still confirms. The prompt TEXT stays static because
+a TTY on the first init only (no stored `profile` yet — checked with
+`hasKey . "profile"`; the hint is also gated on stdin being a TTY while
+chezmoi's prompts use `/dev/tty`, so under `curl ... | sh -s -- init` the
+default shows without the explanation, an accepted limitation). Root without
+`sudo` on PATH is suggested `minimal`, because the dispatchers call a literal
+`sudo`. The explanatory comments in `.chezmoi.toml.tmpl` are Go-template
+comments so they stay out of every machine's rendered config. The user still
+confirms. The prompt TEXT stays static because
 `--promptChoice` is keyed by it; `tests/check_invariants.py` checks
 `$profileFor` against `[profiles]`, and `tests/detect.sh` checks the
 suggestions. To re-pick on an existing machine: `chezmoi init --prompt`
-(`--promptDefaults` accepts the detected default). Unlike `requires = "laptop"`
+(re-asks with the detected default but without the hint; `--promptDefaults`
+accepts the detected default). Unlike `requires = "laptop"`
 (which only gates the opt-in `[personal]` layer), `profile` gates the four
 install tiers themselves:
 
