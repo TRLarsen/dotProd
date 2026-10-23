@@ -140,9 +140,14 @@ czap() {
 # tools, sheldon plugins -- see `dotprod-update --help`, deployed from
 # private_dot_local/bin/executable_dotprod-update.tmpl), then reload the
 # current session. Like czap, it only reloads on success, so a failed step's
-# summary stays on screen. A function, not a script, because of `exec zsh`.
+# summary stays on screen (and --help/--dry-run/-n, which change nothing, skip
+# the reload). A function, not a script, because of `exec zsh`.
 czup() {
-    dotprod-update "$@" && echo "Reloading shell..." && exec zsh
+    dotprod-update "$@" || return
+    case " $* " in
+        *" --help "* | *" -h "* | *" --dry-run "* | *" -n "*) return ;;
+    esac
+    echo "Reloading shell..." && exec zsh
 }
 
 # `eza` (`ls` replacement) default
