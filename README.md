@@ -70,6 +70,17 @@ themselves to a subset of profiles with a `profiles = [...]` key; omitting it
 means "available everywhere the layer's capability allows," so adding a
 standard tool stays a one-line change.
 
+`chezmoi init` **discovers, then asks**: it checks whether you can use `sudo`
+(`sudo` on `PATH` and you are root or in a `sudo`/`wheel`/`admin` group) and
+whether a desktop is present (`$WAYLAND_DISPLAY`/`$DISPLAY`, or an installed
+session under `/usr/share/{wayland-,x}sessions`), prints what it found, and
+offers the matching profile as the default (no sudo → `minimal`, sudo but no
+desktop → `headless`, otherwise `standard`). You always confirm or override;
+nothing is decided silently. The answer is stored once in
+`~/.config/chezmoi/chezmoi.toml`. To re-pick it on an existing machine, run
+`chezmoi init --prompt` from the cloned source (add `--promptDefaults` to take
+the detected default without being asked), then `chezmoi apply`.
+
 ## ⚙️ The Execution Pipeline
 
 Chezmoi executes the bootstrapping pipeline in a strict numerical sequence,

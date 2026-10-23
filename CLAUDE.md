@@ -122,7 +122,17 @@ others — university lab, coworker's machine — must work with **no sudo**).
 Like `laptop`, `profile` is machine-local data from `.chezmoi.toml.tmpl`
 (`promptChoiceOnce`, not `promptBoolOnce` — it validates the answer against
 the three-item choice list instead of accepting anything, so a typo can't
-silently produce an unrecognized profile). Unlike `requires = "laptop"`
+silently produce an unrecognized profile). Its default is **discovered**,
+not hardcoded: `.chezmoi.toml.tmpl` detects the `sudo` capability (`sudo` on
+PATH and root or in a sudo/wheel/admin group — `id -Gn` run behind `|| true`
+because `output` aborts the template on failure) and the `gui` capability
+(display env var or a `.desktop` file in `/usr/share/{wayland-,x}sessions`),
+maps them via a `$profileFor` table to a suggested profile, and prints why to
+a TTY. The user still confirms. The prompt TEXT stays static because
+`--promptChoice` is keyed by it; `tests/check_invariants.py` checks
+`$profileFor` against `[profiles]`, and `tests/detect.sh` checks the
+suggestions. To re-pick on an existing machine: `chezmoi init --prompt`
+(`--promptDefaults` accepts the detected default). Unlike `requires = "laptop"`
 (which only gates the opt-in `[personal]` layer), `profile` gates the four
 install tiers themselves:
 
@@ -154,6 +164,16 @@ install tiers themselves:
   would install things the collision check correctly skipped). If a
   machine's stored `profile` doesn't match a key in `[profiles]`, each
   dispatcher fails loudly at render time rather than guessing.
+
+**Init-time data vs runtime guards.** Install-tier gating (what a machine
+*may* install) relies on the stored `profile`/`laptop`. Runtime checks that
+describe the *current session* deliberately stay runtime: the GUI tier's
+`$WAYLAND_DISPLAY`/`$DISPLAY` check (additive on top of `profile` — a
+`standard` machine applying over SSH has no display right now and must skip
+GUI installs, not fail), `$SSH_CONNECTION` in `dot_zshrc` (per-login
+EDITOR/ssh-agent choice, which init-time data can't know), and `command -v`
+gates (they test whether software is actually present, which no stored answer
+can promise). None were changed.
 
 ### Execution order
 
