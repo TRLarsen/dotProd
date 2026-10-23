@@ -305,7 +305,9 @@ check, which passes only when every required job passed:
   `execute-template --init`), `bash -n` + shellcheck (`--severity=warning`)
   the rendered shell, then `tests/check_rendered.py` re-derives from the
   data what each tier should do and checks the rendered dispatchers agree
-  (incl. mise `[tools]` == the `MISE_TOOLS` collision array).
+  (incl. mise `[tools]` == the `MISE_TOOLS` collision array). Also checks
+  every package the rendered `$PKG_MANAGER` lines would install (system
+  tools + native GUI apps) resolves in that distro's repos.
 - **integration (<distro>, minimal)** — real `chezmoi init --apply` via
   the README bootstrap, as a non-root user **without sudo**, then a second
   apply + `chezmoi verify`, `mise ls --missing`, and an interactive zsh
@@ -315,6 +317,13 @@ check, which passes only when every required job passed:
 sudo on PRs, weekly and on demand, but is `continue-on-error` and not part
 of `ci-gate`: it depends on the latest upstream release of many tools.
 The containers have no systemd, so a logging no-op `systemctl` stands in.
+The minimal integration *is* gating even though it also installs
+`latest` mise tools (a dozen or so small prebuilt binaries), so an upstream
+release can break it with no repo change -- an accepted tradeoff for
+testing the profile that must work unattended. What is pinned: GitHub
+actions and distro images by tag, the CI's chezmoi/shellcheck/shfmt
+binaries by version + sha256 (`tests/lib/common.sh`); installer scripts
+(`get.chezmoi.io`, `mise.run`, rustup, ...) are fetched live.
 
 When adding a tier, data key or template, extend the matching check in
 `tests/` rather than relying on a manual apply. Gotcha:

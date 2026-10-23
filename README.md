@@ -195,12 +195,15 @@ Every pull request runs the test suite in `tests/` via GitHub Actions
 |---|---|
 | `lint` | shellcheck + `shfmt -i 4` on plain shell scripts, `zsh -n` on `.zshrc`, TOML syntax |
 | `invariants` | `.chezmoidata.toml` rules the dispatchers rely on (valid profile names, per-distro coverage, installer scripts present, no `[user_tools]`/`[system_tools]` collisions, ...), and that repo-only files are never deployed |
-| `render (<distro>)` | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do |
+| `render (<distro>)` | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do; every native package it would install exists in that distro's repos |
 | `integration (<distro>, minimal)` | a real `chezmoi init --apply` as a user **without sudo**, then a clean interactive zsh startup (nothing on stderr) |
 
 `integration (<distro>, headless|standard)` also runs on PRs (plus weekly
 and on demand) but is informational only: it downloads the latest release
-of every tool, so upstream breakage shouldn't block a merge.
+of every tool, so upstream breakage shouldn't block a merge. The minimal
+integration also installs `latest` tools (a much smaller set) and *is*
+required, so an upstream release can occasionally break it with no change
+here; that's the accepted price of testing the sudoless profile end to end.
 
 Run the same checks locally (needs python3 ≥ 3.11, zsh, and podman or
 docker; pinned chezmoi/shellcheck/shfmt are downloaded into
