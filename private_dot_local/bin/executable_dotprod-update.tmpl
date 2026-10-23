@@ -218,7 +218,7 @@ rust_toolchain() {
     run "$rustup" update || return
     # Same file .scripts/toolchains/rust.sh generates at install time; cargo's
     # flags can change between releases, so refresh it with the toolchain.
-    run_to "$HOME/.local/share/zsh/completions/_cargo" "$rustup" completions zsh
+    run_to "$HOME/.local/share/zsh/completions/_cargo" "$rustup" completions zsh cargo
 }
 
 mise_self() {

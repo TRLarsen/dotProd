@@ -21,4 +21,4 @@ rustup component add rust-analyzer --toolchain "$TOOLCHAIN_VERSION"
 # Generate static Zsh completions
 echo "Generating Zsh completions for Cargo..."
 mkdir -p "$HOME/.local/share/zsh/completions"
-rustup completions zsh >"$HOME/.local/share/zsh/completions/_cargo"
+rustup completions zsh cargo >"$HOME/.local/share/zsh/completions/_cargo"
