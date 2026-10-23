@@ -248,3 +248,10 @@ if errors:
         print(f"  - {e}", file=sys.stderr)
     sys.exit(1)
 print(f"all {checks} invariant checks passed")
+
+# mise's prebuilt node links libatomic.so.1, which a plain headless
+# Debian/Ubuntu/Fedora install lacks: wherever node installs, so must libatomic.
+if "node" in user_tools:
+    sys_tools = DATA.get("system_tools", {})
+    missing = sorted(entry_profiles(user_tools["node"]) - (entry_profiles(sys_tools["libatomic"]) if "libatomic" in sys_tools else set()))
+    check(not missing, f"[user_tools].'node' is available on {missing} where [system_tools].libatomic (its runtime dependency) is not")
