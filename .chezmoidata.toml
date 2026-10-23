@@ -178,8 +178,8 @@ antigravity-cli = { bin = "agy", profiles = ["standard", "headless"] }
 ghostty = "custom_script"  # Value unused; installed via .scripts/gui/ghostty.sh.tmpl (official mkasberg/ghostty-ubuntu installer)
 # Brave's own .deb/.rpm install /usr/bin/brave-browser and
 # /usr/bin/brave-browser-stable (checked against Brave's rpm repo); its Snap
-# is "brave", which the default already covers. (Arch's AUR brave-bin
-# reportedly ships plain `brave`, unverified; the key is probed anyway.)
+# is "brave", which the default already covers. Arch's AUR brave-bin may
+# ship plain `brave` instead; unverified, so it isn't listed.
 brave = { flatpak = "com.brave.Browser", bins = ["brave-browser", "brave-browser-stable"] }
 bitwarden = "com.bitwarden.desktop"
 vlc = "org.videolan.VLC"
