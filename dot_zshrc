@@ -136,6 +136,11 @@ czap() {
 
 # Upgrade Binaries and update current session
 czup() {
+    # Update mise itself first: the bootstrap in
+    # run_onchange_before_02_install_user_tools.sh.tmpl only installs it once,
+    # and a stale mise misses newer registry short names.
+    echo "Updating Mise..."
+    mise self-update -y
     echo "Upgrading Mise tools..."
     mise upgrade
     echo "Upgrading Rust toolchain..."
