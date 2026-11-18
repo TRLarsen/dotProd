@@ -165,6 +165,36 @@ its own settings straight out of `.personal.<app>` and must still gate on
 the target app actually being installed before doing anything else. See
 `.scripts/personal/zen/configure.sh.tmpl` for the reference implementation.
 
+### 4. Changing or Adding a Theme
+
+Ghostty, Helix, and Zellij share one theme, chosen by a single variable:
+
+```toml
+[theme]
+active = "tokyo-night"
+
+[themes.tokyo-night.dark]
+ghostty = "TokyoNight Night"
+helix = "tokyonight"
+zellij = "tokyo-night-dark"
+
+[themes.tokyo-night.light]
+ghostty = "TokyoNight Day"
+helix = "tokyonight_day"
+zellij = "tokyo-night-light"
+```
+
+Change `active` to retheme all three; add a `[themes.<key>.dark/light]` pair
+to offer a new theme. Each tool's name is spelled out because the tools name
+the same theme differently (and look-alike names aren't always the same
+palette). A missing entry fails `chezmoi apply` loudly instead of silently
+falling back to a tool's default. Ghostty and Zellij switch between the
+`light` and `dark` names automatically; Helix (25.07.1) always uses `dark`.
+
+Set the theme here rather than in each tool's own settings: Zellij's
+settings screen writes into `config.kdl`, which the next `chezmoi apply`
+reverts.
+
 ## 💻 Installation
 
 To bootstrap a new machine from this repository:

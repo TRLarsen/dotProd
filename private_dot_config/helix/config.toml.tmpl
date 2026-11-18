@@ -1,0 +1,11 @@
+# Theme name comes from [theme]/[themes] in .chezmoidata.toml (change `active`
+# there to retheme Ghostty, Helix, and Zellij together).
+#
+# Helix 25.07.1 only takes a single theme, so this is always the dark one.
+# Once a Helix release ships light/dark switching (merged upstream in
+# 2026-03, detected via terminal mode 2031), replace the line below with:
+#
+#   [theme]
+#   dark = "{{ includeTemplate "theme-name" (dict "data" $ "tool" "helix" "mode" "dark") }}"
+#   light = "{{ includeTemplate "theme-name" (dict "data" $ "tool" "helix" "mode" "light") }}"
+theme = "{{ includeTemplate "theme-name" (dict "data" $ "tool" "helix" "mode" "dark") }}"
