@@ -156,10 +156,11 @@ install tiers themselves:
 ### Execution order
 
 Chezmoi runs scripts in lexical order of their `run_*` prefix
-(`before_01` → `before_02` → `before_03` → `after_10` → `after_20` →
-`after_90`), so system packages exist before toolchains, toolchains before
-mise, mise before GUI apps, and everything before the personalization and
-final integrations passes. `onchange` scripts are hashed by chezmoi and only
+(`before_01` → `before_02` → `before_03` → `after_10` → `after_15` →
+`after_20` → `after_90`), so system packages exist before toolchains,
+toolchains before mise, mise before GUI apps, mise-installed bat before its
+theme cache is built (`after_15`), and everything before the personalization
+and final integrations passes. `onchange` scripts are hashed by chezmoi and only
 re-run when their content (or, for the mise script, the `Hash: {{ printf
 "%s|%s" (.user_tools | toJson) .profile | sha256sum }}` comment, which also
 covers `.profile` so switching a machine's profile re-triggers the collision
@@ -288,14 +289,22 @@ render time).
   directory preview — change eza flags there, not in two places. History
   Up/`k` search is Atuin's binding; don't rebind those keys after
   `atuin init`.
-- Ghostty, Helix, and Zellij share one theme, selected by `[theme] active`
-  in `.chezmoidata.toml`. Each `[themes.<key>.dark/light]` table spells out
-  every tool's own name for it (they differ, and look-alike names aren't
-  always the same palette), looked up through the fail-loudly
+- Ghostty, Helix, Zellij, and bat share one theme, selected by `[theme]
+  active` in `.chezmoidata.toml`. Each `[themes.<key>.dark/light]` table
+  spells out every tool's own name for it (they differ, and look-alike names
+  aren't always the same palette), looked up through the fail-loudly
   `.chezmoitemplates/theme-name` partial. Change the theme there, never in
   the rendered configs — Zellij's settings screen writes its `theme` line
   into `config.kdl`, which the next `chezmoi apply` reverts. Helix 25.07.1
   has no light/dark switching, so it always gets the `dark` name.
+- bat themes that aren't built in come from `[bat_themes]` (pinned URL +
+  sha256), downloaded by `.chezmoiexternal.toml` to
+  `~/.config/bat/themes/<name>.tmTheme` — bat names a custom theme after its
+  file, so the key must match the `bat` name used in `[themes]`.
+  `run_onchange_after_15_build_bat_theme_cache.sh.tmpl` then runs `bat cache
+  --build` and fails if a configured name doesn't exist. bat's cache only
+  works with the bat version that built it, so `czup` also rebuilds it right
+  after `mise upgrade`.
 - SSH agent socket in `dot_zshrc` currently points at the Bitwarden Flatpak
   path (`~/.var/app/com.bitwarden.desktop/...`); there are commented-out
   alternates for the Snap path if that ever needs to change back.

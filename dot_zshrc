@@ -42,9 +42,12 @@ _eza_flags=(--group-directories-first --icons=always --color=always)
 
 # fzf-tab previews: eza for directories, bat for files, nothing otherwise
 # ($realpath is the candidate resolved against the completed directory).
+# bat's output is piped into fzf here, so its `--theme=auto` (from
+# ~/.config/bat/config) can't ask the terminal and would fall back to bat's
+# built-in Monokai -- `--theme=dark` picks the configured --theme-dark.
 zstyle ':fzf-tab:complete:*:*' fzf-preview \
     "if [[ -d \$realpath ]]; then eza -1 ${_eza_flags[*]} -- \"\$realpath\";
-     elif [[ -f \$realpath ]]; then bat --color=always --style=numbers --line-range=:200 -- \"\$realpath\"; fi"
+     elif [[ -f \$realpath ]]; then bat --color=always --theme=dark --style=numbers --line-range=:200 -- \"\$realpath\"; fi"
 # No (empty) preview pane where candidates are never paths, so descriptions
 # get the full width: command names, and `-<Tab>` option lists.
 zstyle ':fzf-tab:complete:-command-:*' fzf-preview ''
@@ -138,6 +141,13 @@ czap() {
 czup() {
     echo "Upgrading Mise tools..."
     mise upgrade
+    # bat's theme cache only works with the bat version that built it, so
+    # rebuild it in case that upgrade just bumped bat (needed for the custom
+    # themes in ~/.config/bat/themes -- see [bat_themes] in .chezmoidata.toml).
+    if command -v bat &>/dev/null; then
+        echo "Rebuilding bat theme cache..."
+        bat cache --build >/dev/null
+    fi
     echo "Upgrading Rust toolchain..."
     rustup update
     rustup completions zsh > "$HOME/.local/share/zsh/completions/_cargo"

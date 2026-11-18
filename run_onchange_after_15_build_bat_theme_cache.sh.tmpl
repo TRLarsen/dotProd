@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+{{ $dark := includeTemplate "theme-name" (dict "data" $ "tool" "bat" "mode" "dark") -}}
+{{ $light := includeTemplate "theme-name" (dict "data" $ "tool" "bat" "mode" "light") -}}
+{{ $batVersion := "" -}}
+{{ if lookPath "bat" }}{{ $batVersion = output "bat" "--version" | trim }}{{ end -}}
+# bat only sees custom themes (the ones .chezmoiexternal.toml downloads into
+# ~/.config/bat/themes/ from [bat_themes] in .chezmoidata.toml) after
+# `bat cache --build`. This rebuilds the cache, then checks that the theme
+# names ~/.config/bat/config asks for actually exist -- bat itself would
+# only warn and fall back to its default theme.
+#
+# Re-runs when the downloaded themes, the configured names, or bat's version
+# change (the cache is tied to the bat version; `czup` in dot_zshrc also
+# rebuilds it right after upgrading).
+# Hash: {{ printf "%s|%s|%s|%s" (.bat_themes | toJson) $dark $light $batVersion | sha256sum }}
+
+# Runs right after run_onchange_after_10 (mise install), so on a fresh
+# machine bat may not be on $PATH yet -- fall back to asking mise.
+BAT="$(command -v bat || "$HOME/.local/bin/mise" which bat 2>/dev/null || true)"
+if [[ -z "$BAT" ]]; then
+    echo "bat not installed; skipping theme cache build."
+    exit 0
+fi
+
+echo "Rebuilding bat theme cache..."
+"$BAT" cache --build >/dev/null
+
+themes="$("$BAT" --list-themes --color=never)"
+for name in {{ $dark | quote }} {{ $light | quote }}; do
+    if ! grep -Fxq -- "$name" <<<"$themes"; then
+        echo "❌ Error: bat theme \"$name\" (from [themes] in .chezmoidata.toml) is neither built in to bat nor downloaded via [bat_themes]." >&2
+        exit 1
+    fi
+done
+echo "  ✔ bat themes ready ({{ $dark }} / {{ $light }})."

@@ -194,10 +194,10 @@ start = 50
 end = 80
 
 # ===============================================================
-# 6. THEME (one variable themes Ghostty, Helix, and Zellij together)
+# 6. THEME (one variable themes Ghostty, Helix, Zellij, and bat together)
 # ===============================================================
 # `active` names a [themes.<key>] table below. The key is a neutral slug, not
-# any one tool's spelling -- the three tools name the same theme differently
+# any one tool's spelling -- the tools name the same theme differently
 # (e.g. "TokyoNight Night" / "tokyonight" / "tokyo-night-dark"), and similar-
 # looking names don't always mean the same palette (Zellij's plain
 # "tokyo-night" is NOT the upstream Night variant; "tokyo-night-dark" is), so
@@ -210,9 +210,11 @@ end = 80
 # `active`; to add one, add another [themes.<key>.dark/light] pair.
 #
 # Light/dark switching: Ghostty follows the desktop setting, Zellij follows
-# what the terminal reports (starting in dark when it doesn't say). Helix
-# 25.07.1 can't switch yet and always uses the `dark` name -- see the note
-# in private_dot_config/helix/config.toml.tmpl.
+# what the terminal reports (starting in dark when it doesn't say), bat asks
+# the terminal each time it runs (when its output is piped it can't ask, so
+# fzf-tab's preview in dot_zshrc forces the dark name). Helix 25.07.1 can't
+# switch yet and always uses the `dark` name -- see the note in
+# private_dot_config/helix/config.toml.tmpl.
 [theme]
 active = "tokyo-night"
 
@@ -221,20 +223,46 @@ active = "tokyo-night"
 ghostty = "TokyoNight Night"
 helix = "tokyonight"
 zellij = "tokyo-night-dark"
+bat = "tokyonight_night"
 
 # Upstream "Day" variant (background #e1e2e7). Zellij calls it "-light".
 [themes.tokyo-night.light]
 ghostty = "TokyoNight Day"
 helix = "tokyonight_day"
 zellij = "tokyo-night-light"
+bat = "tokyonight_day"
 
 # Upstream "Storm" variant (slightly lighter blue-gray, background #24283b).
 [themes.tokyo-night-storm.dark]
 ghostty = "TokyoNight Storm"
 helix = "tokyonight_storm"
 zellij = "tokyo-night-storm"
+bat = "tokyonight_storm"
 
 [themes.tokyo-night-storm.light]
 ghostty = "TokyoNight Day"
 helix = "tokyonight_day"
 zellij = "tokyo-night-light"
+bat = "tokyonight_day"
+
+# bat themes that aren't built into bat (`bat --list-themes` shows the
+# built-in ones, which need no entry here). The key is the theme name -- bat
+# names a custom theme after its file, so .chezmoiexternal.toml downloads
+# each one to ~/.config/bat/themes/<key>.tmTheme, and
+# run_onchange_after_15_build_bat_theme_cache.sh.tmpl rebuilds bat's theme
+# cache. URLs are pinned to an upstream commit and checked against
+# `sha256` -- to update, bump the commit in every URL and replace the
+# hashes (`curl -fsSL <url> | sha256sum`).
+#
+# Source: folke/tokyonight.nvim extras/sublime, commit cdc07ac (2026-03-24).
+[bat_themes.tokyonight_night]
+url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_night.tmTheme"
+sha256 = "955c14a16b04917428ffa8b567e2d3760f872f1044a1ad157857001274dceecd"
+
+[bat_themes.tokyonight_storm]
+url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_storm.tmTheme"
+sha256 = "985ce1eb6cb5a2a3bf56bf6124de9165fae7b019c96fc4d923ef775c6d14881e"
+
+[bat_themes.tokyonight_day]
+url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_day.tmTheme"
+sha256 = "f6197768180631b91c8f860f6ec4ee6120c367fdda2155e260cb8b087527a07e"
