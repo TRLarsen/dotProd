@@ -288,6 +288,14 @@ render time).
   directory preview — change eza flags there, not in two places. History
   Up/`k` search is Atuin's binding; don't rebind those keys after
   `atuin init`.
+- Ghostty, Helix, and Zellij share one theme, selected by `[theme] active`
+  in `.chezmoidata.toml`. Each `[themes.<key>.dark/light]` table spells out
+  every tool's own name for it (they differ, and look-alike names aren't
+  always the same palette), looked up through the fail-loudly
+  `.chezmoitemplates/theme-name` partial. Change the theme there, never in
+  the rendered configs — Zellij's settings screen writes its `theme` line
+  into `config.kdl`, which the next `chezmoi apply` reverts. Helix 25.07.1
+  has no light/dark switching, so it always gets the `dark` name.
 - SSH agent socket in `dot_zshrc` currently points at the Bitwarden Flatpak
   path (`~/.var/app/com.bitwarden.desktop/...`); there are commented-out
   alternates for the Snap path if that ever needs to change back.

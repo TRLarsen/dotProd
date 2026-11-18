@@ -1,0 +1,29 @@
+{{- /*
+Looks up one tool's theme name for the active theme in .chezmoidata.toml's
+[theme]/[themes] tables, failing loudly if any piece is missing (rather than
+rendering an empty name and letting the tool silently fall back to its own
+default theme). Used by every themed config via:
+
+    {{ includeTemplate "theme-name" (dict "data" $ "tool" "helix" "mode" "dark") }}
+
+`data` is the root template context (`$`), `tool` is a key inside each
+[themes.<key>.<mode>] table (ghostty, helix, zellij, ...), `mode` is "dark"
+or "light".
+*/ -}}
+{{- $data := .data -}}
+{{- if not (and (hasKey $data "theme") (hasKey $data.theme "active")) -}}
+{{- fail "theme-name: .chezmoidata.toml has no [theme] table with an `active` key" -}}
+{{- end -}}
+{{- $active := $data.theme.active -}}
+{{- if not (and (hasKey $data "themes") (hasKey $data.themes $active)) -}}
+{{- fail (printf "theme-name: [theme] active = %q, but .chezmoidata.toml has no [themes.%s] table" $active $active) -}}
+{{- end -}}
+{{- $theme := index $data.themes $active -}}
+{{- if not (hasKey $theme .mode) -}}
+{{- fail (printf "theme-name: theme %q has no [themes.%s.%s] table" $active $active .mode) -}}
+{{- end -}}
+{{- $names := index $theme .mode -}}
+{{- if not (hasKey $names .tool) -}}
+{{- fail (printf "theme-name: [themes.%s.%s] has no %q entry" $active .mode .tool) -}}
+{{- end -}}
+{{- index $names .tool -}}

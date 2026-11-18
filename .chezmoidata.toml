@@ -192,3 +192,49 @@ requires = "laptop"
 battery = "BAT0"
 start = 50
 end = 80
+
+# ===============================================================
+# 6. THEME (one variable themes Ghostty, Helix, and Zellij together)
+# ===============================================================
+# `active` names a [themes.<key>] table below. The key is a neutral slug, not
+# any one tool's spelling -- the three tools name the same theme differently
+# (e.g. "TokyoNight Night" / "tokyonight" / "tokyo-night-dark"), and similar-
+# looking names don't always mean the same palette (Zellij's plain
+# "tokyo-night" is NOT the upstream Night variant; "tokyo-night-dark" is), so
+# every tool's name is spelled out explicitly per mode rather than derived.
+#
+# Each theme needs a `dark` and a `light` table with a name for every tool;
+# a missing entry fails `chezmoi apply` loudly at render time (see the
+# "theme-name" partial in .chezmoitemplates) rather than silently falling
+# back to a tool's default theme. To switch themes everywhere, change
+# `active`; to add one, add another [themes.<key>.dark/light] pair.
+#
+# Light/dark switching: Ghostty follows the desktop setting, Zellij follows
+# what the terminal reports (starting in dark when it doesn't say). Helix
+# 25.07.1 can't switch yet and always uses the `dark` name -- see the note
+# in private_dot_config/helix/config.toml.tmpl.
+[theme]
+active = "tokyo-night"
+
+# Upstream Tokyo Night "Night" variant (darkest, background #1a1b26).
+[themes.tokyo-night.dark]
+ghostty = "TokyoNight Night"
+helix = "tokyonight"
+zellij = "tokyo-night-dark"
+
+# Upstream "Day" variant (background #e1e2e7). Zellij calls it "-light".
+[themes.tokyo-night.light]
+ghostty = "TokyoNight Day"
+helix = "tokyonight_day"
+zellij = "tokyo-night-light"
+
+# Upstream "Storm" variant (slightly lighter blue-gray, background #24283b).
+[themes.tokyo-night-storm.dark]
+ghostty = "TokyoNight Storm"
+helix = "tokyonight_storm"
+zellij = "tokyo-night-storm"
+
+[themes.tokyo-night-storm.light]
+ghostty = "TokyoNight Day"
+helix = "tokyonight_day"
+zellij = "tokyo-night-light"

@@ -105,3 +105,8 @@ keybind = alt+9=unbind
 
 # Window Management (Handled by Zellij Sessions)
 keybind = ctrl+shift+n=unbind
+
+# Theme -- names come from [theme]/[themes] in .chezmoidata.toml (change
+# `active` there to retheme Ghostty, Helix, and Zellij together). Follows the
+# desktop's light/dark setting.
+theme = light:{{ includeTemplate "theme-name" (dict "data" $ "tool" "ghostty" "mode" "light") }},dark:{{ includeTemplate "theme-name" (dict "data" $ "tool" "ghostty" "mode" "dark") }}
