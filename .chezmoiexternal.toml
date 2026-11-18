@@ -5,12 +5,26 @@ by .chezmoidata.toml -- edit the data there, not this file.
 bat themes: one file per [bat_themes.<name>] entry, saved as
 ~/.config/bat/themes/<name>.tmTheme (bat names a custom theme after its
 file). Pinned URLs plus `checksum.sha256` mean a changed or tampered
-upstream file fails the apply instead of being installed.
+upstream file fails the apply instead of being installed. An entry with a
+`patch` table is piped through .scripts/bat/patch-tmtheme.sh, which gets
+each setting and scope rule as an argument pair.
 */ -}}
 {{ range $name, $theme := .bat_themes -}}
 [".config/bat/themes/{{ $name }}.tmTheme"]
 type = "file"
 url = {{ $theme.url | quote }}
 checksum.sha256 = {{ $theme.sha256 | quote }}
+{{- if hasKey $theme "patch" }}
+filter.command = "sh"
+filter.args = [
+    {{ joinPath $.chezmoi.sourceDir ".scripts/bat/patch-tmtheme.sh" | toJson }},
+{{- range $key, $value := index $theme.patch "settings" | default dict }}
+    "--setting", {{ $key | toJson }}, {{ $value | toJson }},
+{{- end }}
+{{- range $selector, $style := index $theme.patch "scopes" | default dict }}
+    "--scope", {{ $selector | toJson }}, {{ $style | toJson }},
+{{- end }}
+]
+{{- end }}
 
 {{ end -}}

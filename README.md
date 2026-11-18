@@ -199,7 +199,11 @@ its output is piped).
 bat only has a few themes built in (`bat --list-themes`). For any other,
 add a `[bat_themes.<name>]` entry with a pinned `url` and its `sha256`;
 chezmoi downloads it to `~/.config/bat/themes/<name>.tmTheme` and rebuilds
-bat's theme cache. `<name>` is the name to use in `[themes]`.
+bat's theme cache. `<name>` is the name to use in `[themes]`. An optional
+`[bat_themes.<name>.patch]` table fixes colors in the downloaded file
+(global settings like the line-number color, plus extra scope rules); the
+Tokyo Night entries use it to repair their Markdown colors, which upstream
+writes for VS Code's scope names rather than bat's.
 
 Set the theme here rather than in each tool's own settings: Zellij's
 settings screen writes into `config.kdl`, which the next `chezmoi apply`

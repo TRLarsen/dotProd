@@ -304,7 +304,14 @@ render time).
   `run_onchange_after_15_build_bat_theme_cache.sh.tmpl` then runs `bat cache
   --build` and fails if a configured name doesn't exist. bat's cache only
   works with the bat version that built it, so `czup` also rebuilds it right
-  after `mise upgrade`.
+  after `mise upgrade`. An entry's optional `patch` table (`settings` to
+  replace global settings, `scopes` to add rules) becomes a chezmoi external
+  `filter` running `.scripts/bat/patch-tmtheme.sh`, which inserts the rules
+  *first* in the rule list: syntect breaks ties between equally specific
+  selectors in favor of the earlier rule, so appended rules would lose. A
+  more specific upstream rule still wins, so match bat's full scope names
+  (e.g. `... entity.name.section.markdown`), not just a prefix. Bad colors,
+  selectors, or missing settings keys fail the apply.
 - SSH agent socket in `dot_zshrc` currently points at the Bitwarden Flatpak
   path (`~/.var/app/com.bitwarden.desktop/...`); there are commented-out
   alternates for the Snap path if that ever needs to change back.

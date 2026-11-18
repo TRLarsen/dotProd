@@ -11,10 +11,11 @@ set -euo pipefail
 # names ~/.config/bat/config asks for actually exist -- bat itself would
 # only warn and fall back to its default theme.
 #
-# Re-runs when the downloaded themes, the configured names, or bat's version
+# Re-runs when the downloaded themes or their patches (the data and
+# .scripts/bat/patch-tmtheme.sh), the configured names, or bat's version
 # change (the cache is tied to the bat version; `czup` in dot_zshrc also
 # rebuilds it right after upgrading).
-# Hash: {{ printf "%s|%s|%s|%s" (.bat_themes | toJson) $dark $light $batVersion | sha256sum }}
+# Hash: {{ printf "%s|%s|%s|%s|%s" (.bat_themes | toJson) (include ".scripts/bat/patch-tmtheme.sh" | sha256sum) $dark $light $batVersion | sha256sum }}
 
 # Runs right after run_onchange_after_10 (mise install), so on a fresh
 # machine bat may not be on $PATH yet -- fall back to asking mise.
