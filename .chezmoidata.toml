@@ -190,5 +190,5 @@ profiles = ["standard"]  # GUI browser -- only meaningful where the gui_apps tie
 active = true  # Opts into this customization. Enforced centrally by run_after_20_configure_personal.sh.tmpl -- set to false (or delete this table) to disable outright, independent of the requires/laptop gate.
 requires = "laptop"
 battery = "BAT0"
-start = 50
+start = 75
 end = 80
