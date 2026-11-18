@@ -254,15 +254,70 @@ bat = "tokyonight_day"
 # `sha256` -- to update, bump the commit in every URL and replace the
 # hashes (`curl -fsSL <url> | sha256sum`).
 #
+# An optional `patch` table fixes a theme as it's downloaded (applied by
+# .scripts/bat/patch-tmtheme.sh): `patch.settings` replaces global settings
+# (fails if the theme doesn't set that key), and `patch.scopes` adds rules,
+# each a TextMate scope selector = "[bold|italic|underline ...] #rrggbb".
+# Added rules win over the theme's own rules for the same or a less specific
+# selector.
+#
 # Source: folke/tokyonight.nvim extras/sublime, commit cdc07ac (2026-03-24).
+# Its Markdown rules use VS Code's scope names (`heading.1.markdown`,
+# `markup.inline.raw`), which bat's Sublime-based Markdown grammar never
+# emits (`markup.heading.1.markdown`, `markup.raw.inline.markdown`).
+# So headings and inline code went uncolored, and all Markdown text fell
+# through to the theme's dimmed `text.html` color. The patches below
+# re-target the theme's own intended colors at bat's scope names, and
+# brighten the line numbers. bat's grammar only numbers H1 and H2; H3-H6
+# all share `markup.heading.markdown`, so they share one color. To find a
+# scope bat emits, add a probe rule with a unique color and look for it in
+# `bat --color=always` output.
 [bat_themes.tokyonight_night]
 url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_night.tmTheme"
 sha256 = "955c14a16b04917428ffa8b567e2d3760f872f1044a1ad157857001274dceecd"
+
+[bat_themes.tokyonight_night.patch.settings]
+gutterForeground = "#737aa2" # line numbers; upstream #3b415caa is 1.7:1
+
+[bat_themes.tokyonight_night.patch.scopes]
+"text.html.markdown" = "#c0caf5" # full foreground, not text.html's #9aa5ce
+"markup.heading.1.markdown entity.name.section.markdown, markup.heading.1.markdown punctuation.definition.heading.begin.markdown" = "bold #89ddff"
+"markup.heading.2.markdown entity.name.section.markdown, markup.heading.2.markdown punctuation.definition.heading.begin.markdown" = "bold #61bdf2"
+"markup.heading.markdown entity.name.section.markdown, markup.heading.markdown punctuation.definition.heading.begin.markdown" = "bold #7aa2f7" # H3-H6 (bat scopes them alike)
+"markup.raw.inline.markdown" = "#bb9af7"
+"markup.raw.inline.markdown punctuation.definition.raw.begin.markdown, markup.raw.inline.markdown punctuation.definition.raw.end.markdown, markup.quote.markdown punctuation.definition.blockquote.markdown" = "#737aa2"
+"meta.link.inline.description.markdown" = "#73daca"
 
 [bat_themes.tokyonight_storm]
 url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_storm.tmTheme"
 sha256 = "985ce1eb6cb5a2a3bf56bf6124de9165fae7b019c96fc4d923ef775c6d14881e"
 
+# Same palette as Night, on a lighter background (#24283b).
+[bat_themes.tokyonight_storm.patch.settings]
+gutterForeground = "#737aa2"
+
+[bat_themes.tokyonight_storm.patch.scopes]
+"text.html.markdown" = "#c0caf5"
+"markup.heading.1.markdown entity.name.section.markdown, markup.heading.1.markdown punctuation.definition.heading.begin.markdown" = "bold #89ddff"
+"markup.heading.2.markdown entity.name.section.markdown, markup.heading.2.markdown punctuation.definition.heading.begin.markdown" = "bold #61bdf2"
+"markup.heading.markdown entity.name.section.markdown, markup.heading.markdown punctuation.definition.heading.begin.markdown" = "bold #7aa2f7" # H3-H6 (bat scopes them alike)
+"markup.raw.inline.markdown" = "#bb9af7"
+"markup.raw.inline.markdown punctuation.definition.raw.begin.markdown, markup.raw.inline.markdown punctuation.definition.raw.end.markdown, markup.quote.markdown punctuation.definition.blockquote.markdown" = "#737aa2"
+"meta.link.inline.description.markdown" = "#73daca"
+
 [bat_themes.tokyonight_day]
 url = "https://raw.githubusercontent.com/folke/tokyonight.nvim/cdc07ac78467a233fd62c493de29a17e0cf2b2b6/extras/sublime/tokyonight_day.tmTheme"
 sha256 = "f6197768180631b91c8f860f6ec4ee6120c367fdda2155e260cb8b087527a07e"
+
+# Upstream Day reuses the dark variants' Markdown colors (#9aa5ce text is
+# 1.9:1 on its #e1e2e7 background), so these use Day's own palette instead.
+# Its line numbers (#3b415c) are already readable on light.
+[bat_themes.tokyonight_day.patch.scopes]
+"text.html.markdown" = "#3760bf" # Day's foreground
+"markup.heading.1.markdown entity.name.section.markdown, markup.heading.1.markdown punctuation.definition.heading.begin.markdown" = "bold #006a83"
+"markup.heading.2.markdown entity.name.section.markdown, markup.heading.2.markdown punctuation.definition.heading.begin.markdown" = "bold #007197"
+"markup.heading.markdown entity.name.section.markdown, markup.heading.markdown punctuation.definition.heading.begin.markdown" = "bold #506d9c" # H3-H6 (bat scopes them alike)
+"markup.raw.inline.markdown" = "#7847bd"
+"markup.raw.inline.markdown punctuation.definition.raw.begin.markdown, markup.raw.inline.markdown punctuation.definition.raw.end.markdown, markup.quote.markdown punctuation.definition.blockquote.markdown" = "#4e5579"
+"meta.link.inline.description.markdown" = "#387068"
+"punctuation.definition.list_item.markdown" = "#007197"
