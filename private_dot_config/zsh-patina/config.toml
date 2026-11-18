@@ -1,0 +1,5 @@
+# zsh-patina: shell syntax highlighting, activated in dot_zshrc. The daemon
+# caches the theme, so run_onchange_after_16_restart_zsh_patina.sh restarts
+# it whenever this file or the theme changes.
+[highlighting]
+theme = "file:~/.config/zsh-patina/themes/patina-bold.toml"

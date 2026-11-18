@@ -1,0 +1,67 @@
+# zsh-patina's built-in default `patina` theme (as of zsh-patina 1.12.0), with
+# commands made bold blue. The default colors commands cyan and leaves their
+# arguments in the plain text color, and many terminal palettes (Tokyo Night
+# included) make those two equally bright, so `ssh` and `<target>` differed
+# only in hue. Bold separates them by weight instead.
+#
+# Every color here is one of the terminal's eight ANSI colors (except the
+# gray comments, as upstream), so it follows Ghostty's palette: light/dark
+# switching and theme changes need no edits here. Custom zsh-patina themes
+# can't extend a built-in one, so this is a full copy; diff it against
+# upstream's themes/patina.toml when upgrading.
+# Lines changed from upstream are marked `# CHANGED`.
+
+# comments
+"comment" = "#a0a0a0"
+
+# strings
+"string" = "green"
+
+# regular expressions
+"keyword.operator.regexp" = "green"
+
+# escape characters
+"constant.character.escape" = "yellow"
+
+# numeric file descriptors (e.g. `2> /dev/null`)
+"constant.numeric.integer.decimal.file-descriptor" = "yellow"
+
+# parameters
+"variable.parameter" = "magenta"
+
+# environment variables
+"variable.other" = "yellow"
+"punctuation.definition.variable" = "yellow"
+
+# commands (dynamic.callable below wins whenever dynamic highlighting can
+# confirm the command exists, so the two must match)
+"variable.function" = { foreground = "blue", bold = true } # CHANGED (was "cyan")
+
+# home directory ~
+"variable.language.tilde" = "magenta"
+
+# keywords
+"keyword" = "blue"
+
+# variable assignments
+"storage" = "blue"
+
+# support terms (e.g. double braces, let)
+"support" = "cyan"
+
+# function names
+"entity.name.function" = "yellow"
+
+# braces
+"punctuation.section" = "yellow"
+
+# history expansions
+"meta.group.expansion.history" = "yellow"
+
+# reset command substitutions to terminal defaults
+"meta.group.expansion.command.parens" = {}
+
+# dynamic items
+"dynamic.callable" = { foreground = "blue", bold = true } # CHANGED (was "cyan")
+"dynamic.callable.missing" = "red"
+"dynamic.path" = { underline = true }
