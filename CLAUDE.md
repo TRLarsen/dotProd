@@ -280,6 +280,14 @@ render time).
 - Zellij is the terminal multiplexer; Ghostty's config
   (`private_dot_config/ghostty/config`) deliberately unbinds its own
   tab/split/window shortcuts so they don't conflict with Zellij's.
+- Command-line syntax highlighting is zsh-patina (activated in `dot_zshrc`),
+  using `private_dot_config/zsh-patina/themes/patina-bold.toml`: a full copy
+  of its default theme with commands bold blue (custom themes can't extend
+  a built-in one). It uses only ANSI colors so it follows Ghostty's palette;
+  keep it that way rather than hardcoding hex colors. Its daemon caches the
+  theme, so `run_onchange_after_16_restart_zsh_patina.sh.tmpl` restarts it
+  when either file changes, and fails if the theme won't load (`zsh-patina
+  check` itself exits 0 on a broken theme).
 - Tab completion UI is fzf-tab (Sheldon plugin, listed first in
   `private_dot_config/sheldon/plugins.toml` so it loads before widget-wrapping
   plugins). Completion colors come from `LS_COLORS` (the same source eza

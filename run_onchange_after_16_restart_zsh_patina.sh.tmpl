@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+
+# zsh-patina's background daemon (shared by every shell) caches its config
+# and theme, so edits to ~/.config/zsh-patina/ only show up after a restart.
+# Re-runs whenever either file changes:
+# Hash: {{ include "private_dot_config/zsh-patina/config.toml" | sha256sum }} {{ include "private_dot_config/zsh-patina/themes/patina-bold.toml" | sha256sum }}
+
+# Runs after run_onchange_after_10 (mise install), so on a fresh machine
+# zsh-patina may not be on $PATH yet -- fall back to asking mise.
+ZP="$(command -v zsh-patina || "$HOME/.local/bin/mise" which zsh-patina 2>/dev/null || true)"
+if [[ -z "$ZP" ]]; then
+    echo "zsh-patina not installed; skipping restart."
+    exit 0
+fi
+
+# `zsh-patina check` exits 0 even when the theme fails to load (and would
+# leave the shell unhighlighted), so look for its error line instead.
+report="$("$ZP" check 2>&1 || true)"
+if grep -q '❌ Theme' <<<"$report"; then
+    echo "❌ Error: zsh-patina can't load the theme in ~/.config/zsh-patina/config.toml:" >&2
+    echo "$report" >&2
+    exit 1
+fi
+
+# Only restart a daemon that's already running; otherwise the next shell
+# starts it with the new config anyway.
+if "$ZP" status 2>/dev/null | grep -q 'is running'; then
+    "$ZP" restart >/dev/null
+    echo "  ✔ zsh-patina daemon restarted with the new theme (open a new shell to see it)."
+fi
