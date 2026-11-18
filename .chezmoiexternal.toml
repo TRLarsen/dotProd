@@ -1,0 +1,16 @@
+{{- /*
+Files chezmoi downloads into $HOME (always rendered as a template). Driven
+by .chezmoidata.toml -- edit the data there, not this file.
+
+bat themes: one file per [bat_themes.<name>] entry, saved as
+~/.config/bat/themes/<name>.tmTheme (bat names a custom theme after its
+file). Pinned URLs plus `checksum.sha256` mean a changed or tampered
+upstream file fails the apply instead of being installed.
+*/ -}}
+{{ range $name, $theme := .bat_themes -}}
+[".config/bat/themes/{{ $name }}.tmTheme"]
+type = "file"
+url = {{ $theme.url | quote }}
+checksum.sha256 = {{ $theme.sha256 | quote }}
+
+{{ end -}}

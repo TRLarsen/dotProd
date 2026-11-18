@@ -1,0 +1,12 @@
+# Theme names come from [theme]/[themes] in .chezmoidata.toml (change
+# `active` there to retheme Ghostty, Helix, Zellij, and bat together).
+# Custom (non-built-in) themes are downloaded from [bat_themes] there.
+#
+# `auto` asks the terminal whether it's light or dark and picks
+# --theme-light or --theme-dark. If it can't tell -- including whenever
+# bat's output is piped -- it ignores both and uses bat's built-in default
+# (Monokai), so piped callers like fzf-tab's preview in dot_zshrc pass
+# `--theme=dark` (or `--theme=light`) explicitly.
+--theme=auto
+--theme-dark="{{ includeTemplate "theme-name" (dict "data" $ "tool" "bat" "mode" "dark") }}"
+--theme-light="{{ includeTemplate "theme-name" (dict "data" $ "tool" "bat" "mode" "light") }}"

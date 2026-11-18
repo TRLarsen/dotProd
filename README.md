@@ -167,7 +167,8 @@ the target app actually being installed before doing anything else. See
 
 ### 4. Changing or Adding a Theme
 
-Ghostty, Helix, and Zellij share one theme, chosen by a single variable:
+Ghostty, Helix, Zellij, and bat share one theme, chosen by a single
+variable:
 
 ```toml
 [theme]
@@ -177,19 +178,28 @@ active = "tokyo-night"
 ghostty = "TokyoNight Night"
 helix = "tokyonight"
 zellij = "tokyo-night-dark"
+bat = "tokyonight_night"
 
 [themes.tokyo-night.light]
 ghostty = "TokyoNight Day"
 helix = "tokyonight_day"
 zellij = "tokyo-night-light"
+bat = "tokyonight_day"
 ```
 
-Change `active` to retheme all three; add a `[themes.<key>.dark/light]` pair
+Change `active` to retheme all four; add a `[themes.<key>.dark/light]` pair
 to offer a new theme. Each tool's name is spelled out because the tools name
 the same theme differently (and look-alike names aren't always the same
 palette). A missing entry fails `chezmoi apply` loudly instead of silently
-falling back to a tool's default. Ghostty and Zellij switch between the
-`light` and `dark` names automatically; Helix (25.07.1) always uses `dark`.
+falling back to a tool's default. Ghostty, Zellij, and bat switch between
+the `light` and `dark` names automatically; Helix (25.07.1) always uses
+`dark`, and so do fzf-tab's bat previews (bat can't detect light/dark when
+its output is piped).
+
+bat only has a few themes built in (`bat --list-themes`). For any other,
+add a `[bat_themes.<name>]` entry with a pinned `url` and its `sha256`;
+chezmoi downloads it to `~/.config/bat/themes/<name>.tmTheme` and rebuilds
+bat's theme cache. `<name>` is the name to use in `[themes]`.
 
 Set the theme here rather than in each tool's own settings: Zellij's
 settings screen writes into `config.kdl`, which the next `chezmoi apply`
