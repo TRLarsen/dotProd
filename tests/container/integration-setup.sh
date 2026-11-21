@@ -37,7 +37,10 @@ esac
 useradd --create-home --shell /bin/bash tester
 
 if [[ "$profile" != minimal ]]; then
-    # An owned machine: the user may sudo without a password (CI can't type one).
+    # An owned machine: the user is in the distro's admin group, like a real
+    # sudoer (that membership is what .chezmoi.toml.tmpl's profile discovery
+    # looks for), and may sudo without a password (CI can't type one).
+    usermod -aG "$([[ "$ID" == fedora ]] && echo wheel || echo sudo)" tester
     cat >/etc/sudoers.d/tester <<'EOF'
 tester ALL=(ALL) NOPASSWD: ALL
 Defaults:tester env_keep += "DEBIAN_FRONTEND"
