@@ -296,8 +296,7 @@ check, which passes only when every required job passed:
   shell script, `zsh -n dot_zshrc`, TOML parse.
 - **invariants** — `tests/check_invariants.py`: rules the dispatchers rely
   on but don't enforce (every `profiles = [...]` names a `[profiles]` key;
-  the hardcoded profile lists in `entry-in-profile` and `.chezmoi.toml.tmpl`
-  match `[profiles]`; per-distro `[system_tools]` tables cover
+  per-distro `[system_tools]` tables cover
   fedora/ubuntu/debian; every installer script exists and every script maps
   to an entry; `[user_tools]` bins are unique and don't collide with
   `[system_tools]`; `npm:`/`pipx:`/`cargo:` tools only appear on profiles
