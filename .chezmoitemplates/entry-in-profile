@@ -16,8 +16,12 @@ annotation for the entries that actually need restricting.
 */ -}}
 {{- $entry := .entry -}}
 {{- $profile := .profile -}}
-{{- $allowed := list "standard" "headless" "minimal" -}}
 {{- if and (kindIs "map" $entry) (hasKey $entry "profiles") -}}
-{{- $allowed = $entry.profiles -}}
+{{- has $profile $entry.profiles -}}
+{{- else -}}
+{{- /* No allow-list: every profile. This deliberately doesn't enumerate the
+profile names -- the [profiles] table in .chezmoidata.toml is their only
+definition, and the 01/02/03 dispatchers already fail at render time when the
+machine's profile isn't a key there. */ -}}
+{{- true -}}
 {{- end -}}
-{{- has $profile $allowed -}}

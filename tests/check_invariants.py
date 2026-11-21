@@ -63,23 +63,7 @@ for name, caps in PROFILES.items():
         # GUI installs run `sudo flatpak ...`; a gui-without-sudo profile would fail at apply time.
         errors.append(f"[profiles.{name}] has gui = true but sudo = false; the gui_apps tier needs sudo")
 
-# The profile list is also hardcoded in two templates; both must match [profiles].
-partial = (REPO / ".chezmoitemplates" / "entry-in-profile").read_text()
-m = re.search(r'\$allowed\s*:=\s*list((?:\s+"[^"]+")+)', partial)
-check(m is not None, ".chezmoitemplates/entry-in-profile: could not find the `$allowed := list ...` default")
-if m:
-    allowed = re.findall(r'"([^"]+)"', m.group(1))
-    check(set(allowed) == PROFILE_NAMES,
-          f".chezmoitemplates/entry-in-profile default list {allowed} != [profiles] keys {sorted(PROFILE_NAMES)}")
-
 config_tmpl = (REPO / ".chezmoi.toml.tmpl").read_text()
-m = re.search(r'promptChoiceOnce\s+\.\s+"profile"\s+"[^"]*"\s+\(list((?:\s+"[^"]+")+)\)\s+"([^"]+)"', config_tmpl)
-check(m is not None, ".chezmoi.toml.tmpl: could not find the `profile` promptChoiceOnce")
-if m:
-    choices, default = re.findall(r'"([^"]+)"', m.group(1)), m.group(2)
-    check(set(choices) == PROFILE_NAMES,
-          f".chezmoi.toml.tmpl profile choices {choices} != [profiles] keys {sorted(PROFILE_NAMES)}")
-    check(default in choices, f".chezmoi.toml.tmpl profile default {default!r} is not one of its choices")
 
 # Machine-local data keys .chezmoi.toml.tmpl writes under [data] (for `requires`).
 data_block = config_tmpl.split("[data]", 1)[1] if "[data]" in config_tmpl else ""

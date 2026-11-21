@@ -26,7 +26,8 @@ SHFMT_SHA256="76e77641faa025814b77f153b29796b8e6fa2fca03e0c76a691608b86c7ea7bf" 
 # here: the dispatcher has an arch branch, but the per-distro maps have no
 # arch entries, so rendering fails loudly there by design.
 DISTROS=(fedora ubuntu debian)
-PROFILES=(standard headless minimal)
+# Profile names come from the [profiles] table (their only definition).
+mapfile -t PROFILES < <(python3 -c 'import sys, tomllib; print(*tomllib.load(open(sys.argv[1], "rb"))["profiles"], sep="\n")' "$REPO_ROOT/.chezmoidata.toml")
 
 image_for() {
     case "$1" in
