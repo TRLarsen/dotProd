@@ -5,6 +5,7 @@
 # runs (not just when the binary is missing), so every step must be idempotent.
 set -euo pipefail
 
+# shellcheck source=/dev/null # the target machine's os-release, not a repo file
 . /etc/os-release
 
 if [[ $ID == fedora ]]; then

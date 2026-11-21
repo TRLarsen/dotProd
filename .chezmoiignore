@@ -7,5 +7,10 @@ README.md
 CLAUDE.md
 LICENSE
 
+# Test suite (run by .github/workflows/ci.yml, or locally via tests/run.sh).
+# Repo-only, like the docs above. (.github/ needs no entry: chezmoi already
+# ignores every dot-prefixed source path that isn't a .chezmoi* file.)
+tests
+
 # Reference file, not meant to be deployed to $HOME.
 prefs.js
