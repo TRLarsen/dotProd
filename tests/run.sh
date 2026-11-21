@@ -10,9 +10,10 @@
 #   tests/run.sh invariants                     .chezmoidata.toml invariants + `chezmoi managed`
 #   tests/run.sh render [distro...]             render every template per distro x profile x laptop
 #   tests/run.sh integration <distro> <profile> real `chezmoi init --apply` in a container
-#   tests/run.sh all [--full]                   everything CI requires (lint, invariants, render on
-#                                               every distro, minimal integration on every distro);
-#                                               --full adds the headless/standard integrations
+#   tests/run.sh all [--full]                   the quick part of what CI requires (lint, invariants,
+#                                               render and minimal integration on every distro);
+#                                               --full adds the headless/standard integrations, i.e.
+#                                               everything the merge gate requires
 #
 # distro: fedora | ubuntu | debian (or "all");  profile: minimal | headless | standard (or "all")
 # Set GITHUB_TOKEN (e.g. GITHUB_TOKEN=$(gh auth token)) for the integration

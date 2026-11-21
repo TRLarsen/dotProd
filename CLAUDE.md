@@ -316,14 +316,18 @@ check, which passes only when every required job passed:
   apply + `chezmoi verify`, `mise ls --missing`, and an interactive zsh
   (on a pty) that must print nothing to stderr.
 
-`integration (<distro>, headless|standard)` runs the same with passwordless
-sudo on PRs, weekly and on demand, but is `continue-on-error` and not part
-of `ci-gate`: it depends on the latest upstream release of many tools.
-The containers have no systemd, so a logging no-op `systemctl` stands in.
-The minimal integration *is* gating even though it also installs
-`latest` mise tools (a dozen or so small prebuilt binaries), so an upstream
-release can break it with no repo change -- an accepted tradeoff for
-testing the profile that must work unattended. What is pinned: GitHub
+- **integration (<distro>, headless|standard)** — the same, with
+  passwordless sudo and no display (the GUI tier skips itself). The
+  containers have no systemd, so a logging no-op `systemctl` stands in.
+
+Every job above is required: `ci-gate` needs all of them, and none is
+`continue-on-error`. The integration jobs install the `latest` upstream
+release of many tools, so an upstream release can break them (and every
+PR) with no repo change -- an accepted tradeoff for catching drift early;
+the fix is a PR that pins the offending tool in `.chezmoidata.toml`. The
+workflow also runs weekly and on demand (`schedule`/`workflow_dispatch`),
+so drift shows up even when no PR is open; there is no `push` trigger
+(PRs into main are required). What is pinned: GitHub
 actions and distro images by tag, the CI's chezmoi/shellcheck/shfmt
 binaries by version + sha256 (`tests/lib/common.sh`); installer scripts
 (`get.chezmoi.io`, `mise.run`, rustup, ...) are fetched live.

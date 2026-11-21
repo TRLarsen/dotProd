@@ -197,13 +197,14 @@ Every pull request runs the test suite in `tests/` via GitHub Actions
 | `invariants` | `.chezmoidata.toml` rules the dispatchers rely on (valid profile names, per-distro coverage, installer scripts present, no `[user_tools]`/`[system_tools]` collisions, ...), and that repo-only files are never deployed |
 | `render (<distro>)` | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do; every native package it would install exists in that distro's repos |
 | `integration (<distro>, minimal)` | a real `chezmoi init --apply` as a user **without sudo**, then a clean interactive zsh startup (nothing on stderr) |
+| `integration (<distro>, headless\|standard)` | the same real apply, with passwordless sudo (no display, so the GUI tier skips itself) |
 
-`integration (<distro>, headless|standard)` also runs on PRs (plus weekly
-and on demand) but is informational only: it downloads the latest release
-of every tool, so upstream breakage shouldn't block a merge. The minimal
-integration also installs `latest` tools (a much smaller set) and *is*
-required, so an upstream release can occasionally break it with no change
-here; that's the accepted price of testing the sudoless profile end to end.
+The integration jobs download the latest release of every tool, so an
+upstream release can occasionally break them (and so every PR) with no
+change here. That is the accepted price of catching upstream drift and
+breaking changes early; the fix is a PR that pins the offending tool in
+`.chezmoidata.toml`. The workflow also runs weekly and on demand, so drift
+is noticed even when no PR is open.
 
 Run the same checks locally (needs python3 ≥ 3.11, zsh, and podman or
 docker; pinned chezmoi/shellcheck/shfmt are downloaded into
@@ -215,5 +216,5 @@ tests/run.sh lint
 tests/run.sh invariants
 tests/run.sh render ubuntu               # or: render all
 tests/run.sh integration fedora minimal  # set GITHUB_TOKEN to avoid mise rate limits
-tests/run.sh all                         # everything the merge gate requires (--full adds headless/standard)
+tests/run.sh all                         # lint, invariants, render, minimal integration (--full adds headless/standard = the whole gate)
 ```
