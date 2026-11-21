@@ -16,7 +16,7 @@ export PATH="/opt/ci-bin:$PATH"
 # shellcheck source=/dev/null # the container's own os-release
 . /etc/os-release
 DISTRO="$ID"
-PROFILES=(standard headless minimal)
+read -ra PROFILES <<<"${PROFILES:?set by tests/render.sh}" # from [profiles] in .chezmoidata.toml
 
 work="$(mktemp -d)"
 out="$work/out"
