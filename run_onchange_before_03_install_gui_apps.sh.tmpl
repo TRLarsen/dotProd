@@ -6,7 +6,7 @@ set -euo pipefail
 {{- end }}
 
 {{ if not (index .profiles .profile "gui") }}
-echo "⏭️  Skipping gui_apps tier entirely: profile {{ .profile | quote }} has no gui capability."
+echo "⏭️  Skipping gui_apps tier entirely: profile \"{{ .profile }}\" has no gui capability."
 exit 0
 {{ end }}
 
@@ -21,13 +21,16 @@ fi
 
 echo "Display server detected. Validating GUI elements..."
 
-# Pre-pass: does any [gui_apps] entry opt into native = true? Only then do we
-# need to resolve PKG_MANAGER / run apt-get update below -- avoids a wasted
-# apt-get update (and sudo prompt) on machines with no native gui_apps entries.
+# Pre-pass: does any [gui_apps] entry available on this profile opt into
+# native = true? Only then do we need to resolve PKG_MANAGER / run apt-get
+# update below -- avoids a wasted apt-get update (and sudo prompt) on
+# machines with no native gui_apps entries.
 {{- $has_native := false }}
 {{- range $app, $app_identifier := .gui_apps }}
 {{- if and (kindIs "map" $app_identifier) (hasKey $app_identifier "native") $app_identifier.native }}
+{{- if eq (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
 {{- $has_native = true }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{ if $has_native }}
@@ -55,7 +58,7 @@ fi
 
 {{ range $app, $app_identifier := .gui_apps }}
 {{- if ne (includeTemplate "entry-in-profile" (dict "entry" $app_identifier "profile" $.profile)) "true" }}
-echo "⏭️  Skipping {{ $app }} (not in profile {{ $.profile | quote }})."
+echo "⏭️  Skipping {{ $app }} (not in profile \"{{ $.profile }}\")."
 {{- else }}
 {{- $is_native := false }}
 {{- if kindIs "map" $app_identifier }}
@@ -74,9 +77,12 @@ if [[ -f "$SCRIPT_PATH" ]]; then
     echo "🖥️  Running custom GUI installer for {{ $app }}..."
     # Render the template via chezmoi first, then pipe to bash with $1 set to
     # the resolved package name (native entries) or the raw TOML value
-    # (Flatpak entries).
+    # (Flatpak entries). CHEZMOI_EXECUTABLE/CHEZMOI_SOURCE_DIR are exported
+    # by chezmoi to its scripts; reading them at runtime (not rendering the
+    # binary path in) keeps a chezmoi upgrade from changing this script's
+    # hash and re-running the whole tier.
 {{ if $is_native }}
-    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
+    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app }}"
 
 # 2. Native install via the OS package manager (native = true)
 elif command -v {{ $app }} &> /dev/null; then
@@ -86,16 +92,18 @@ else
     $PKG_MANAGER "{{ $app }}"
 fi
 {{ else }}
-    chezmoi execute-template < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
+    "${CHEZMOI_EXECUTABLE:-chezmoi}" execute-template --source "${CHEZMOI_SOURCE_DIR:-{{ $.chezmoi.sourceDir }}}" < "$SCRIPT_PATH" | bash -s -- "{{ $app_identifier }}"
 
 # 2. Fallback strictly to Flatpak using the TOML value as the ID
 elif command -v flatpak &> /dev/null; then
-    # SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers
-    if [[ "{{ $app_identifier }}" == ppa:* ]] || [[ "{{ $app_identifier }}" == */* ]]; then
-        echo "❌ Error: Missing custom installer script for {{ $app }}."
-        echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
-        exit 1
-    fi
+{{- /* SAFETY GUARD: Catch missing custom scripts for non-Flatpak identifiers.
+       The identifier is a render-time constant, so check it here rather than
+       rendering a `[[ "<constant>" == ppa:* ]]` test into the script. */}}
+{{- if or (hasPrefix "ppa:" $app_identifier) (contains "/" $app_identifier) }}
+    echo "❌ Error: Missing custom installer script for {{ $app }}."
+    echo "Cannot pass repository string '{{ $app_identifier }}' to Flatpak. Aborting."
+    exit 1
+{{- end }}
 
     echo "📦 Checking Flatpak installation for {{ $app }}..."
 
