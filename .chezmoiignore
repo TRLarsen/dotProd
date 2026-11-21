@@ -9,3 +9,9 @@ LICENSE
 
 # Reference file, not meant to be deployed to $HOME.
 prefs.js
+
+# Desktop launchers are meaningless without a desktop; gated on the same
+# [profiles] `gui` capability as the [gui_apps] tier.
+{{ if not (index .profiles .profile "gui") }}
+.local/share/applications/dev.zellij.Zellij.desktop
+{{ end }}

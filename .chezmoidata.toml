@@ -92,7 +92,6 @@ node = { bin = "node", profiles = ["standard", "headless"] }  # Needed by the np
 # would fetch anyway on standard/headless, but with no dependency on a
 # `cargo` binary being present, which is what makes these installable on
 # "minimal" (no rust toolchain at all) without any compile fallback.
-zellij = "zellij"  # Modern Window/pane/tile/session manager
 ripgrep = "rg"  # Modern `grep`
 # "cargo:fd-find" = "fd"  # Modern `find` # Comes pre-installed on Fedora COSMIC Spin, need to gate/check
 bat = "bat"  # Modern `cat`
@@ -105,6 +104,16 @@ sheldon = "sheldon"  # Zsh Plugin Manager
 # (mise's older `ubi:` backend does the same thing but is deprecated as of
 # this mise version, scheduled for removal in 2027.1.0 -- use `github:`.)
 "github:michel-kraemer/zsh-patina" = "zsh-patina"
+# Modern Window/pane/tile/session manager. Deliberately NOT the bare name:
+# that resolves to aqua, which installs the statically linked musl build,
+# and a static binary can't dlopen fontconfig -- so the `zellij terminal`
+# desktop app (0.46+) can't find system fonts and falls back to its
+# embedded ones (no Nerd Font glyphs). The `github:` backend auto-picks the
+# glibc build instead (musl only on musl distros), which needs just glibc
+# 2.17, so it stays fine on "minimal". Its launcher is
+# private_dot_local/private_share/applications/dev.zellij.Zellij.desktop.tmpl,
+# which hardcodes this key's mise install dir name -- update both together.
+"github:zellij-org/zellij" = "zellij"
 
 # NPM Tools (require node, so excluded wherever node is)
 "npm:bash-language-server" = { bin = "bash-language-server", profiles = ["standard", "headless"] }
@@ -190,5 +199,5 @@ profiles = ["standard"]  # GUI browser -- only meaningful where the gui_apps tie
 active = true  # Opts into this customization. Enforced centrally by run_after_20_configure_personal.sh.tmpl -- set to false (or delete this table) to disable outright, independent of the requires/laptop gate.
 requires = "laptop"
 battery = "BAT0"
-start = 50
+start = 75
 end = 80

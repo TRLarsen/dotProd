@@ -1,0 +1,51 @@
+{{- /*
+Launcher for the `zellij terminal` desktop app (Zellij 0.46+), replacing the
+one Zellij's own first-run setup writes. That setup copies whatever binary is
+running to ~/.local/bin/zellij and points the launcher at the copy, which is
+then frozen: `czup` upgrades the mise install but never the copy, so the
+desktop app and the CLI drift onto different versions (and different
+versions can't talk over the shared session socket dir), and the copy is an
+unmanaged binary outside mise that the [user_tools] collision check flags.
+
+Instead this points at mise's `latest` symlink, which `mise upgrade` moves,
+so the desktop app always runs the same binary as the shell. The directory
+name is mise's mangling of the [user_tools] key
+"github:zellij-org/zellij" -- change both together.
+
+No X-Zellij-Installed / X-Zellij-Fingerprint marker on purpose: Zellij only
+auto-repairs or rewrites a launcher whose marker is intact, so without one it
+treats this file as the user's and leaves it alone. Only deployed on profiles
+with gui = true (see .chezmoiignore).
+*/ -}}
+{{- $zellij := joinPath .chezmoi.homeDir ".local/share/mise/installs/github-zellij-org-zellij/latest/zellij" -}}
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Zellij
+GenericName=Terminal Workspace
+Comment=Manage Your Terminal Applications
+Exec={{ $zellij }} terminal
+TryExec={{ $zellij }}
+Icon=dev.zellij.Zellij
+Terminal=false
+StartupNotify=true
+StartupWMClass=dev.zellij.Zellij
+Categories=System;TerminalEmulator;
+Keywords=terminal;multiplexer;shell;workspace;
+X-TerminalArgExec=-e
+X-TerminalArgDir=--working-directory=
+X-TerminalArgHold=--hold
+X-ExecArg=-e
+Actions=inbox;sessions;new-window;
+
+[Desktop Action inbox]
+Name=Show Inbox
+Exec={{ $zellij }} terminal --inbox
+
+[Desktop Action sessions]
+Name=Show Sessions
+Exec={{ $zellij }} terminal --sessions
+
+[Desktop Action new-window]
+Name=New Window
+Exec={{ $zellij }} terminal

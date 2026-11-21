@@ -279,7 +279,12 @@ render time).
   markdown, and expects `auto-format = true` for c/cpp/rust/markdown.
 - Zellij is the terminal multiplexer; Ghostty's config
   (`private_dot_config/ghostty/config`) deliberately unbinds its own
-  tab/split/window shortcuts so they don't conflict with Zellij's.
+  tab/split/window shortcuts so they don't conflict with Zellij's. Zellij's
+  `[user_tools]` key is `"github:zellij-org/zellij"`, not bare `zellij`
+  (aqua's static musl build can't load system fonts in the `zellij
+  terminal` desktop app), and its launcher is chezmoi-managed and points at
+  mise's `latest` symlink — if Zellij's first-run setup offers to copy
+  itself to `~/.local/bin`, decline; that copy never gets `czup` upgrades.
 - Tab completion UI is fzf-tab (Sheldon plugin, listed first in
   `private_dot_config/sheldon/plugins.toml` so it loads before widget-wrapping
   plugins). Completion colors come from `LS_COLORS` (the same source eza
