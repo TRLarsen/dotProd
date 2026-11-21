@@ -21,7 +21,7 @@ rc=0
 # The rendered tree comes back as a tar on stdout (no bind-mounted output
 # dir, so no root-owned files on the host under docker).
 engine run --rm --security-opt label=disable \
-    -v "$REPO_ROOT:/src:ro" -v "$TOOLS_DIR:/opt/ci-bin:ro" \
+    -e "PROFILES=${PROFILES[*]}" -v "$REPO_ROOT:/src:ro" -v "$TOOLS_DIR:/opt/ci-bin:ro" \
     "$image" bash /src/tests/container/render.sh >"$out.tar" || rc=$?
 tar -xf "$out.tar" -C "$out" || [[ $rc -ne 0 ]] || die "container produced no render output"
 rm -f "$out.tar"

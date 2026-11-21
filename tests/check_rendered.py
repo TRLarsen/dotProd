@@ -39,7 +39,7 @@ def contains_line(text: str, line: str) -> bool:
 
 
 cases = sorted(p for p in rendered.iterdir() if p.is_dir())
-check(len(cases) == 3 * 2, f"expected 6 profile x laptop cases, found {[c.name for c in cases]}")
+check(len(cases) == len(data["profiles"]) * 2, f"expected {len(data['profiles'])} x 2 profile x laptop cases, found {[c.name for c in cases]}")
 
 for case in cases:
     m = re.fullmatch(r"(\w+)-laptop_(true|false)", case.name)

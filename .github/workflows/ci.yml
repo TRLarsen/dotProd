@@ -2,16 +2,14 @@
 # tests/run.sh); this file only wires it into GitHub Actions.
 #
 # MERGE GATE: branch protection should require exactly one check, `ci-gate`.
-# It passes only if every *required* job below succeeded:
-#   lint, invariants, render (x3 distros), integration-minimal (x3 distros)
-# The headless/standard integration jobs (integration-full) are deliberately
-# NOT part of the gate: they pull the latest upstream release of dozens of
-# tools (rust toolchain, node, codex, ...), so they can fail for reasons
-# unrelated to the PR. They still run on every PR, weekly and on demand, and
-# are marked continue-on-error so a failure there never fails the run.
-# integration-minimal also installs `latest` mise tools (a much smaller set)
-# yet IS gating: an upstream release can break it with no repo change, the
-# accepted price of testing the sudoless profile end to end.
+# It passes only if every job below succeeded:
+#   lint, invariants, render (x3 distros), integration-minimal (x3 distros),
+#   integration-full (x3 distros x headless/standard)
+# The integration jobs pull the latest upstream release of dozens of tools
+# (rust toolchain, node, codex, ...), so they can fail for reasons unrelated
+# to the PR. That is the accepted price of catching upstream drift and
+# breaking changes early. If an upstream release breaks the build, fix it in
+# a PR that pins the offending tool in .chezmoidata.toml.
 #
 # Pinning: actions and distro images by tag; chezmoi/shellcheck/shfmt by
 # version + sha256 (tests/lib/common.sh); installer scripts (get.chezmoi.io,
@@ -20,11 +18,8 @@ name: CI
 
 on:
   # No branch filter on purpose: PRs stacked on another PR's branch (base !=
-  # main) must be tested too. push is main-only so a PR branch isn't run
-  # twice (once for the push, once for the PR).
+  # main) must be tested too.
   pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: "23 5 * * 1" # Mondays 05:23 UTC: catches upstream drift with no PR open
   workflow_dispatch:
@@ -34,7 +29,7 @@ permissions:
 
 concurrency:
   # PR runs share one group per PR, so a new push cancels the superseded run.
-  # Every other run (push to main, schedule, dispatch) gets a group of its own
+  # Every other run (schedule, dispatch) gets a group of its own
   # (keyed by run id), so it is never cancelled -- or queued -- by another.
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -89,11 +84,7 @@ jobs:
       - run: tests/run.sh integration ${{ matrix.distro }} minimal
 
   integration-full:
-    name: integration (${{ matrix.distro }}, ${{ matrix.profile }}) [not required]
-    if: github.event_name != 'push'
-    # NOT GATING (see the header): a failure here is reported on the PR but
-    # does not fail the workflow, and ci-gate does not depend on this job.
-    continue-on-error: true
+    name: integration (${{ matrix.distro }}, ${{ matrix.profile }})
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
@@ -112,7 +103,7 @@ jobs:
     # always(): report a real failure (instead of "skipped", which branch
     # protection treats as passing) when a required job failed or was cancelled.
     if: always()
-    needs: [lint, invariants, render, integration-minimal]
+    needs: [lint, invariants, render, integration-minimal, integration-full]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

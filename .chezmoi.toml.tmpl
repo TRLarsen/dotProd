@@ -25,7 +25,8 @@
 {{- $laptop := promptBoolOnce . "laptop" "Is this a laptop" $batteryPresent }}
 
 # `profile` picks which install profile this machine uses (standard,
-# headless or minimal) -- see the [profiles] table in .chezmoidata.toml.
+# headless or minimal) -- see the [profiles] table in .chezmoidata.toml,
+# the single definition of the profile names (the choices are read from it).
 {{- /* See the "entry-in-profile" partial in .chezmoitemplates for how it's
        applied. Orthogonal to `laptop` (a shared/borrowed laptop can still
        be "minimal"). promptChoiceOnce (not promptStringOnce) validates the
@@ -95,7 +96,13 @@
 {{- if and stdinIsATTY (not (hasKey . "profile")) }}
 {{-   writeToStdout (printf "Install profile detection: %s; %s -- suggesting %q.\n" $sudoWhy $desktopWhy $suggested) }}
 {{- end }}
-{{- $profile := promptChoiceOnce . "profile" "Which install profile is this machine (standard/headless/minimal)" (list "standard" "headless" "minimal") $suggested }}
+{{- /* The choices come from the [profiles] table itself. .chezmoidata.toml isn't
+exposed to this template as data, so read it from the source dir directly. */ -}}
+{{- $profiles := list }}
+{{- range keys (include ".chezmoidata.toml" | fromToml).profiles | sortAlpha }}
+{{- $profiles = append $profiles . }}
+{{- end }}
+{{- $profile := promptChoiceOnce . "profile" "Which install profile is this machine" $profiles $suggested }}
 [data]
     laptop  = {{ $laptop }}
     profile = {{ $profile | quote }}

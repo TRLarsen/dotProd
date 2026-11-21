@@ -179,6 +179,37 @@ its own settings straight out of `.personal.<app>` and must still gate on
 the target app actually being installed before doing anything else. See
 `.scripts/personal/zen/configure.sh.tmpl` for the reference implementation.
 
+### 4. Machine-Local Shell Settings (`~/.zshrc.local`)
+
+For shell tweaks that belong to one machine only and shouldn't be committed
+(a work proxy, an extra `PATH` entry, a host-specific alias), create
+`~/.zshrc.local`. The shared `~/.zshrc` sources it as its very last step,
+only if it exists, so anything in it overrides the shared settings.
+chezmoi never manages it: there's no source file for it, and
+`.chezmoiignore` lists it, so `chezmoi apply` never touches it and an
+accidental `chezmoi add ~/.zshrc.local` is a no-op rather than pushing it
+to every machine.
+
+```zsh
+# ~/.zshrc.local -- this machine only
+export HTTPS_PROXY=http://proxy.example.internal:3128
+alias vpn='sudo openconnect vpn.example.internal'
+```
+
+Because it runs last, it's too late for settings the shared `.zshrc` reads
+while starting up (e.g. `ZELLIJ_AUTO_ATTACH`/`ZELLIJ_AUTO_EXIT`, which
+Zellij's auto-start reads before the tool inits finish). Put those in
+`~/.zshenv`, which zsh reads before `~/.zshrc` and which this repo doesn't
+manage either.
+
+How this differs from the [personal layer](#3-adding-a-personal-app-linked-setting):
+`[personal]` is declarative and tracked in git, so a setting is declared once
+and every machine it applies to picks it up (scoped with `requires` /
+`profiles` where it shouldn't apply everywhere). `~/.zshrc.local` is the
+escape hatch for untracked, ad-hoc tweaks on one machine. If you find the
+same lines in several machines' `~/.zshrc.local`, they belong in the repo
+instead.
+
 ## 💻 Installation
 
 To bootstrap a new machine from this repository:
@@ -204,19 +235,20 @@ Every pull request runs the test suite in `tests/` via GitHub Actions
 (`.github/workflows/ci.yml`); branch protection requires the single
 **`ci-gate`** check, which passes only if all of these pass:
 
-| Job | What it checks |
-|---|---|
-| `lint` | shellcheck + `shfmt -i 4` on plain shell scripts, `zsh -n` on `.zshrc`, TOML syntax |
-| `invariants` | `.chezmoidata.toml` rules the dispatchers rely on (valid profile names, per-distro coverage, installer scripts present, no `[user_tools]`/`[system_tools]` collisions, ...), and that repo-only files are never deployed |
-| `render (<distro>)` | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do; every native package it would install exists in that distro's repos |
-| `integration (<distro>, minimal)` | a real `chezmoi init --apply` as a user **without sudo**, then a clean interactive zsh startup (nothing on stderr) |
+| Job                                          | What it checks                                                                                                                                                                                                                                              |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`                                       | shellcheck + `shfmt -i 4` on plain shell scripts, `zsh -n` on `.zshrc`, TOML syntax                                                                                                                                                                         |
+| `invariants`                                 | `.chezmoidata.toml` rules the dispatchers rely on (valid profile names, per-distro coverage, installer scripts present, no `[user_tools]`/`[system_tools]` collisions, ...), and that repo-only files are never deployed                                    |
+| `render (<distro>)`                          | every template rendered on fedora/ubuntu/debian for every profile × laptop answer; the rendered shell passes `bash -n` + shellcheck and matches what the data says each tier should do; every native package it would install exists in that distro's repos |
+| `integration (<distro>, minimal)`            | a real `chezmoi init --apply` as a user **without sudo**, then a clean interactive zsh startup (nothing on stderr), and that a `~/.zshrc.local` is sourced last and never touched or adopted by chezmoi                                                     |     |
+| `integration (<distro>, headless\|standard)` | the same real apply, with passwordless sudo (no display, so the GUI tier skips itself)                                                                                                                                                                      |
 
-`integration (<distro>, headless|standard)` also runs on PRs (plus weekly
-and on demand) but is informational only: it downloads the latest release
-of every tool, so upstream breakage shouldn't block a merge. The minimal
-integration also installs `latest` tools (a much smaller set) and *is*
-required, so an upstream release can occasionally break it with no change
-here; that's the accepted price of testing the sudoless profile end to end.
+The integration jobs download the latest release of every tool, so an
+upstream release can occasionally break them (and so every PR) with no
+change here. That is the accepted price of catching upstream drift and
+breaking changes early; the fix is a PR that pins the offending tool in
+`.chezmoidata.toml`. The workflow also runs weekly and on demand, so drift
+is noticed even when no PR is open.
 
 Run the same checks locally (needs python3 ≥ 3.11, zsh, and podman or
 docker; pinned chezmoi/shellcheck/shfmt are downloaded into
@@ -228,5 +260,5 @@ tests/run.sh lint
 tests/run.sh invariants
 tests/run.sh render ubuntu               # or: render all
 tests/run.sh integration fedora minimal  # set GITHUB_TOKEN to avoid mise rate limits
-tests/run.sh all                         # everything the merge gate requires (--full adds headless/standard)
+tests/run.sh all                         # lint, invariants, render, minimal integration (--full adds headless/standard = the whole gate)
 ```

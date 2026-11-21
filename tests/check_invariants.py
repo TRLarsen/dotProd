@@ -63,22 +63,7 @@ for name, caps in PROFILES.items():
         # GUI installs run `sudo flatpak ...`; a gui-without-sudo profile would fail at apply time.
         errors.append(f"[profiles.{name}] has gui = true but sudo = false; the gui_apps tier needs sudo")
 
-# The profile list is also hardcoded in two templates; both must match [profiles].
-partial = (REPO / ".chezmoitemplates" / "entry-in-profile").read_text()
-m = re.search(r'\$allowed\s*:=\s*list((?:\s+"[^"]+")+)', partial)
-check(m is not None, ".chezmoitemplates/entry-in-profile: could not find the `$allowed := list ...` default")
-if m:
-    allowed = re.findall(r'"([^"]+)"', m.group(1))
-    check(set(allowed) == PROFILE_NAMES,
-          f".chezmoitemplates/entry-in-profile default list {allowed} != [profiles] keys {sorted(PROFILE_NAMES)}")
-
 config_tmpl = (REPO / ".chezmoi.toml.tmpl").read_text()
-m = re.search(r'promptChoiceOnce\s+\.\s+"profile"\s+"[^"]*"\s+\(list((?:\s+"[^"]+")+)\)\s+\$suggested\s', config_tmpl)
-check(m is not None, ".chezmoi.toml.tmpl: could not find the `profile` promptChoiceOnce (defaulting to $suggested)")
-choices = re.findall(r'"([^"]+)"', m.group(1)) if m else []
-check(set(choices) == PROFILE_NAMES,
-      f".chezmoi.toml.tmpl profile choices {choices} != [profiles] keys {sorted(PROFILE_NAMES)}")
-
 # The suggested default comes from a detected-capabilities -> profile table
 # in .chezmoi.toml.tmpl. It has to restate [profiles] (.chezmoidata isn't
 # loaded when the config template runs), so check it against [profiles]:
@@ -93,7 +78,7 @@ check(len(detect_keys) == len(set(detect_keys)), f".chezmoi.toml.tmpl $profileFo
 for key, name in zip(pairs[0::2], pairs[1::2]):
     km = re.fullmatch(r"sudo=(true|false) gui=(true|false)", key)
     check(km is not None, f".chezmoi.toml.tmpl $profileFor key {key!r} is not \"sudo=<bool> gui=<bool>\"")
-    check(name in choices, f".chezmoi.toml.tmpl $profileFor suggests {name!r}, which is not a prompt choice")
+    check(name in PROFILE_NAMES, f".chezmoi.toml.tmpl $profileFor suggests {name!r}, which is not a [profiles] key")
     if km and name in PROFILES:
         want = {"sudo": km.group(1) == "true", "gui": km.group(2) == "true"}
         check(PROFILES[name] == want,
