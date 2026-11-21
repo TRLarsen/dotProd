@@ -18,8 +18,7 @@ name: CI
 
 on:
   # No branch filter on purpose: PRs stacked on another PR's branch (base !=
-  # main) must be tested too. push is main-only so a PR branch isn't run
-  # twice (once for the push, once for the PR).
+  # main) must be tested too.
   pull_request:
   schedule:
     - cron: "23 5 * * 1" # Mondays 05:23 UTC: catches upstream drift with no PR open
